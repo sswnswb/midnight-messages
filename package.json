@@ -1,0 +1,17 @@
+{
+  "name": "midnight-messages",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "《午夜来讯》— 心理恐怖文字解谜游戏",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.0"
+  }
+}
