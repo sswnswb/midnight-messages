@@ -1657,17 +1657,29 @@ input[type="range"]::-webkit-slider-thumb {
   white-space: pre-line;
 }
 .timed-bar {
-  width: 70%;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 2px;
+  width: 74%;
+  height: 7px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
   overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(255, 120, 120, 0.15);
 }
 .timed-fill {
   width: 100%;
   height: 100%;
   background: linear-gradient(90deg, #ff6b6b, #ffb199);
-  box-shadow: 0 0 12px rgba(255, 90, 90, 0.6);
+  box-shadow: 0 0 16px rgba(255, 90, 90, 0.7);
+}
+.timed-count {
+  font-size: 20px;
+  font-weight: 700;
+  color: rgba(255, 120, 120, 0.95);
+  letter-spacing: 0.1em;
+  font-variant-numeric: tabular-nums;
+}
+.timed-count.urgent {
+  animation: battPulse 0.5s ease-in-out infinite;
+  color: #ff4d4d;
 }
 .timed-btns {
   display: flex;

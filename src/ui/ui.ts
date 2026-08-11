@@ -1057,6 +1057,9 @@ function showTimedChoice(id: string): void {
   const fill = document.createElement('div');
   fill.className = 'timed-fill';
   bar.appendChild(fill);
+  const counter = document.createElement('div');
+  counter.className = 'timed-count';
+  counter.textContent = `0:${cfg.seconds}`;
   const btns = document.createElement('div');
   btns.className = 'timed-btns';
 
@@ -1088,7 +1091,7 @@ function showTimedChoice(id: string): void {
     b.addEventListener('click', () => finish(o));
     btns.appendChild(b);
   }
-  ov.append(prompt, bar, btns);
+  ov.append(prompt, bar, counter, btns);
   app.appendChild(ov);
 
   requestAnimationFrame(() => {
@@ -1096,11 +1099,14 @@ function showTimedChoice(id: string): void {
   });
   const start = Date.now();
   const iv = window.setInterval(() => {
+    const remain = Math.ceil(cfg.seconds - (Date.now() - start) / 1000);
+    counter.textContent = `0:${remain > 9 ? '' : '0'}${Math.max(0, remain)}`;
+    if (remain <= 2) counter.classList.add('urgent');
     if (Date.now() - start >= cfg.seconds * 1000) {
       clearInterval(iv);
       finish(cfg.timeout, cfg.timeout.scare);
     }
-  }, 100);
+  }, 200);
 }
 
 /** 跳吓点：全屏覆盖层 + 音效，克制使用 */
