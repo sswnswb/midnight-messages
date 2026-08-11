@@ -1,3 +1,51 @@
+// src/engine/state.ts
+var META_KEY = "wywlx_meta_v1";
+function freshRun() {
+  return {
+    flags: {},
+    currentNode: "p1s1",
+    chapter: 0,
+    readCount: 0,
+    time: 23 * 60 + 50,
+    // 序章从 23:50 开始
+    notes: ["n_onboarding", "n_lin_remind", "n_lin_draft", "n_zhou", "n_secret"],
+    photos: ["p_home", "p_lin_cake", "p_lin_window", "p_nightout", "p_room", "p_hallway_orig"],
+    contacts: ["c_unknown", "c_lin", "c_zhou", "c_mom", "c_doctor"],
+    calls: ["c_lin_last"],
+    draftsUnlocked: false,
+    roomViewed: 0,
+    evidence: [],
+    battery: 87,
+    hintsUsed: 0,
+    timelineCorrect: false
+  };
+}
+var run = freshRun();
+var meta = loadMeta();
+function getRun() {
+  return run;
+}
+function hasEvidence(id) {
+  return Array.isArray(run.evidence) && run.evidence.includes(id);
+}
+function getHintsUsed() {
+  return run.hintsUsed || 0;
+}
+function loadMeta() {
+  try {
+    const raw = localStorage.getItem(META_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        endings: parsed.endings ?? [],
+        newGamePlus: parsed.newGamePlus ?? false
+      };
+    }
+  } catch {
+  }
+  return { endings: [], newGamePlus: false };
+}
+
 // src/story/endings.ts
 var ENDINGS = {
   confess: {
@@ -143,11 +191,29 @@ function listEndings() {
   return Object.values(ENDINGS);
 }
 function resolveEnding(p, opts) {
+  const run2 = getRun();
+  const truthEv = [
+    hasEvidence("e_hallway"),
+    hasEvidence("e_333"),
+    hasEvidence("e_call_self"),
+    hasEvidence("e_note_wrong"),
+    hasEvidence("e_draft"),
+    run2.timelineCorrect
+  ].filter(Boolean).length;
+  const careEv = [
+    hasEvidence("e_room"),
+    hasEvidence("e_lin_last"),
+    hasEvidence("e_nightout"),
+    hasEvidence("e_lin_draft")
+  ].filter(Boolean).length;
+  const hints = getHintsUsed();
+  const evictedTruth = Math.max(0, truthEv - Math.floor(hints / 2));
   if (opts.newGamePlus && opts.allBaseUnlocked && p.truth >= 3 && p.care >= 3) return "awakening";
   if (p.silent >= 4) return "silence";
-  if (p.avoid >= 4 && p.truth <= 2) return "loop";
-  if (p.care >= 5 && p.truth >= 4) return "merge";
-  if (p.help >= 4 && p.truth >= 2) return "therapy";
+  if (p.avoid >= 4 && p.truth <= 2 && truthEv < 2) return "loop";
+  if (p.care >= 5 && p.truth >= 4 || p.care >= 4 && truthEv >= 2 && careEv >= 2) return "merge";
+  if (p.help >= 3 && p.truth >= 2) return "therapy";
+  if (p.truth >= 4 && evictedTruth >= 2) return "confess";
   if (p.truth >= 4) return "confess";
   const dims = ["truth", "help", "care", "avoid", "silent"];
   const best = dims.reduce((a, b) => p[b] > p[a] ? b : a, "truth");
@@ -164,8 +230,22 @@ function resolveEnding(p, opts) {
       return "confess";
   }
 }
+function evidenceSummary() {
+  const run2 = getRun();
+  const lines = [];
+  if (run2.timelineCorrect) lines.push("\u4F60\u628A\u90A3\u665A\u7684\u987A\u5E8F\uFF0C\u81EA\u5DF1\u62FC\u5BF9\u4E86\u3002");
+  if (hasEvidence("e_hallway")) lines.push("\u4F60\u627E\u9F50\u4E86\u95E8\u7F1D\u91CC\u7684\u5F71\u5B50\u3002");
+  if (hasEvidence("e_333")) lines.push("\u4F60\u5728 3:33 \u6253\u5F00\u8FC7\u76F8\u518C\u3002");
+  if (hasEvidence("e_room")) lines.push("\u90A3\u4E2A\u7A7A\u623F\u95F4\uFF0C\u4F60\u53CD\u590D\u770B\u8FC7\u3002");
+  if (hasEvidence("e_call_self")) lines.push("\u4F60\u770B\u89C1\u4E86\u90A3\u901A\u6253\u7ED9\u81EA\u5DF1\u7684\u7535\u8BDD\u3002");
+  if (hasEvidence("e_draft")) lines.push("\u4F60\u6253\u5F00\u4E86\u8349\u7A3F\u7BB1\uFF0C\u770B\u89C1\u5B9A\u65F6\u77ED\u4FE1\u3002");
+  if (hasEvidence("e_note_wrong")) lines.push("\u4F60\u8BFB\u5230\u4E86\u90A3\u4E24\u6761\u77DB\u76FE\u7684\u5907\u5FD8\u5F55\u3002");
+  if (getHintsUsed() >= 3) lines.push("\u6709\u4E9B\u7B54\u6848\uFF0C\u4F60\u662F\u95EE\u51FA\u6765\u7684\u3002");
+  return lines.length ? lines.join("\n") : "";
+}
 export {
   ENDINGS,
+  evidenceSummary,
   getEnding,
   listEndings,
   resolveEnding

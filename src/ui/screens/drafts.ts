@@ -1,10 +1,11 @@
 // 草稿箱屏：谜题③——4 位密码解锁（答案=车祸日期 1106）
 
-import { getRun, setFlag, getFlag } from '../../engine/state';
-import { router } from '../phone';
+import { getRun, setFlag, getFlag, addEvidence, addBattery } from '../../engine/state';
+import { router, ui as phoneUi } from '../phone';
 import * as audio from '../../engine/audio';
 import { fx } from '../fx';
 import { showBanner } from '../ui';
+import { hintBox } from '../hints';
 
 const PASSCODE = '1106';
 
@@ -48,7 +49,7 @@ function renderLock(): HTMLElement {
   title.textContent = '草稿箱已加密';
   const hint = document.createElement('div');
   hint.className = 'drafts-lock-hint';
-  hint.textContent = '输入 4 位数字密码。\n（提示：备忘录里有答案。那晚的雨……是哪一天？）';
+  hint.textContent = '输入 4 位数字密码。\n（提示：先回答"那晚是哪一天"。相册、通话记录、备忘录里，都写着它。）';
 
   const pad = document.createElement('div');
   pad.className = 'passcode';
@@ -77,10 +78,14 @@ function renderLock(): HTMLElement {
         fx.glitch(400);
         setFlag('draftsUnlocked', true);
         getRun().draftsUnlocked = true;
+        addEvidence('e_draft');
         router.show('drafts');
       } else {
         audio.playStinger();
         fx.shake(260);
+        audio.playStaticBurst();
+        addBattery(-4);
+        phoneUi.updateStatus();
         entered = '';
         wrongTimes++;
         if (wrongTimes === 3) {
@@ -113,6 +118,16 @@ function renderLock(): HTMLElement {
 
   pad.append(dots, keys);
   view.append(icon, title, hint, pad);
+  view.appendChild(
+    hintBox(
+      [
+        '那晚是哪一天？想不起来就翻相册——有一张照片的日期，就是那晚。',
+        '那晚聚餐的照片，和最后一通未接来电，写的都是同一天。',
+        '密码 = 月在前、日在后。11 月 6 日 → 1106。',
+      ],
+      { taunt: '「连密码都要问？你手机里全是答案。」' },
+    ),
+  );
   return view;
 }
 

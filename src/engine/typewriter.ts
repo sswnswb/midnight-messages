@@ -37,8 +37,8 @@ export class Typewriter {
     this.idx++;
     if (this.opts.audio && !this.isPunct(ch)) playType();
     let delay = this.opts.speed ?? 34;
-    if (this.isLongPunct(ch)) delay = 520;
-    else if (this.isPunct(ch)) delay = 260;
+    if (this.isLongPunct(ch)) delay = 300;
+    else if (this.isPunct(ch)) delay = 150;
     this.timer = window.setTimeout(() => this.type(), delay);
   }
 

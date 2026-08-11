@@ -20,6 +20,14 @@ export interface RunState {
   draftsUnlocked: boolean;
   /** 看过几遍空房间照片（重复中的变化） */
   roomViewed: number;
+  /** 证据册：已收证的线索 id */
+  evidence: string[];
+  /** 手机电量百分比（0-100），恐怖机制里的压力值 */
+  battery: number;
+  /** 用过几次谜题提示 */
+  hintsUsed: number;
+  /** 第四章时间线拼图是否排对 */
+  timelineCorrect: boolean;
 }
 
 export interface MetaState {
@@ -43,6 +51,10 @@ export function freshRun(): RunState {
     calls: ['c_lin_last'],
     draftsUnlocked: false,
     roomViewed: 0,
+    evidence: [],
+    battery: 87,
+    hintsUsed: 0,
+    timelineCorrect: false,
   };
 }
 
@@ -96,6 +108,55 @@ export function setCurrentNode(id: string): void {
 
 export function advanceTime(min: number): void {
   run.time = Math.max(0, run.time + min);
+}
+
+/** 把手机时钟拨到一天中的某个分钟数（如 3:33 = 213），保持已过的天数 */
+export function setClock(minOfDay: number): void {
+  const day = Math.floor(run.time / 1440);
+  run.time = day * 1440 + Math.min(1439, Math.max(0, minOfDay));
+}
+
+/** 是否处于某个时段（如 3:33，容差 ±1 分钟） */
+export function atTime(minOfDay: number, tol = 1): boolean {
+  return Math.abs((run.time % 1440) - minOfDay) <= tol;
+}
+
+// ---------- 证据册 ----------
+export function addEvidence(id: string): void {
+  if (!Array.isArray(run.evidence)) run.evidence = [];
+  if (!run.evidence.includes(id)) run.evidence.push(id);
+}
+export function hasEvidence(id: string): boolean {
+  return Array.isArray(run.evidence) && run.evidence.includes(id);
+}
+export function evidenceCount(): number {
+  return run.evidence?.length ?? 0;
+}
+
+// ---------- 电量 ----------
+export function getBattery(): number {
+  return typeof run.battery === 'number' ? run.battery : 87;
+}
+export function setBattery(n: number): void {
+  run.battery = Math.max(0, Math.min(100, n));
+}
+export function addBattery(delta: number): void {
+  setBattery(getBattery() + delta);
+}
+
+// ---------- 时间线 ----------
+export function setTimelineCorrect(v: boolean): void {
+  run.timelineCorrect = v;
+  run.flags['timelineCorrect'] = v;
+}
+
+// ---------- 提示 ----------
+export function useHint(): number {
+  run.hintsUsed = (run.hintsUsed || 0) + 1;
+  return run.hintsUsed;
+}
+export function getHintsUsed(): number {
+  return run.hintsUsed || 0;
 }
 
 export function bumpRead(): void {
@@ -220,6 +281,22 @@ export function evalCond(expr: string | undefined): boolean {
     }
   }
   if (expr === 'drafts:unlocked') return run.draftsUnlocked;
+  if (expr.startsWith('evidence:')) return hasEvidence(expr.slice('evidence:'.length));
+  const b = expr.match(/^battery:(<=|>=|<|>)\s*(\d+)$/);
+  if (b) {
+    const val = getBattery();
+    const target = Number(b[2]);
+    switch (b[1]) {
+      case '<=':
+        return val <= target;
+      case '>=':
+        return val >= target;
+      case '<':
+        return val < target;
+      case '>':
+        return val > target;
+    }
+  }
   if (expr === 'chapter:>1') return run.chapter > 1;
   if (expr === 'chapter:>2') return run.chapter > 2;
   if (expr === 'chapter:>3') return run.chapter > 3;
@@ -231,6 +308,7 @@ export function evalCond(expr: string | undefined): boolean {
 
 export function interpolate(text: string): string {
   return text.replace(/\{([A-Za-z0-9_]+)\}/g, (_, key: string) => {
+    if (key === 'evidence_count') return String(evidenceCount());
     const v = run.flags[key];
     if (v === undefined) return '';
     return String(v);

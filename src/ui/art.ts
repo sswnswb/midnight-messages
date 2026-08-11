@@ -304,8 +304,70 @@ function sceneCity(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   flare(ctx, w, h, w * 0.74, h * 0.2, 120, 'rgba(210,225,250,0.4)');
 }
 
+// 找不同·矮桌（照片里多了一个杯子）
+function sideTable(ctx: CanvasRenderingContext2D, w: number, h: number, withCup: boolean): void {
+  const tx = w * 0.15, ty = h * 0.58, tw = w * 0.1, th = h * 0.14;
+  ctx.fillStyle = 'rgba(18,24,38,0.92)';
+  ctx.fillRect(tx - tw / 2, ty, tw, th);
+  ctx.fillStyle = 'rgba(12,16,28,0.92)';
+  ctx.fillRect(tx - tw / 2 + 3, ty + th - 3, 3, 9);
+  ctx.fillRect(tx + tw / 2 - 6, ty + th - 3, 3, 9);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillRect(tx - tw / 2 - 2, ty + th + 4, tw + 4, 4);
+  if (withCup) {
+    // 杯身 + 手柄（暗色剪影，不该在的位置）
+    ctx.fillStyle = 'rgba(150,165,200,0.32)';
+    ctx.fillRect(tx - 4, ty - 12, 8, 12);
+    ctx.beginPath();
+    ctx.arc(tx + 6, ty - 8, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(205,220,250,0.16)';
+    ctx.fillRect(tx - 2, ty - 12, 4, 12);
+  }
+}
+
+// 找不同·右侧窗（照片里窗帘被拉上）
+function sideWindow(ctx: CanvasRenderingContext2D, w: number, h: number, curtain: boolean): void {
+  const wx = w * 0.64, wy = h * 0.14, ww = w * 0.2, wh = h * 0.34;
+  if (curtain) {
+    const cg = ctx.createLinearGradient(wx, 0, wx + ww, 0);
+    cg.addColorStop(0, 'rgba(8,10,16,0.95)');
+    cg.addColorStop(0.5, 'rgba(16,20,30,0.95)');
+    cg.addColorStop(1, 'rgba(8,10,16,0.95)');
+    ctx.fillStyle = cg;
+    ctx.fillRect(wx, wy, ww, wh);
+    ctx.strokeStyle = 'rgba(120,135,170,0.12)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i < 4; i++) {
+      ctx.beginPath();
+      ctx.moveTo(wx + (ww / 4) * i, wy);
+      ctx.lineTo(wx + (ww / 4) * i, wy + wh);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(150,165,200,0.2)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(wx, wy, ww, wh);
+  } else {
+    const wg = ctx.createLinearGradient(0, wy, 0, wy + wh);
+    wg.addColorStop(0, 'rgba(150,165,200,0.22)');
+    wg.addColorStop(1, 'rgba(100,120,165,0.12)');
+    ctx.fillStyle = wg;
+    ctx.fillRect(wx, wy, ww, wh);
+    ctx.fillStyle = 'rgba(6,8,14,0.9)';
+    ctx.fillRect(wx - 4, wy, 6, wh);
+    ctx.fillRect(wx + ww - 2, wy, 6, wh);
+    ctx.strokeStyle = 'rgba(170,185,215,0.25)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(wx, wy, ww, wh);
+    ctx.beginPath();
+    ctx.moveTo(wx + ww / 2, wy);
+    ctx.lineTo(wx + ww / 2, wy + wh);
+    ctx.stroke();
+  }
+}
+
 function sceneHallway(ctx: CanvasRenderingContext2D, w: number, h: number): void {
-  // 走廊（恐怖）：透视灭点 + 门缝光 + 门后虚影
+  // 走廊（恐怖）：透视灭点 + 门缝光 + 门后虚影 + 三处"不该有"的差异
   bg(ctx, w, h, [[0, '#0a0e18'], [1, '#080b12']]);
   const vx = w * 0.5, vy = h * 0.34;
   // 墙面与地面分界（带纵深渐变）
@@ -357,6 +419,9 @@ function sceneHallway(ctx: CanvasRenderingContext2D, w: number, h: number): void
   ctx.arc(vx + 2, vy + 18, 7, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillRect(vx - 4, vy + 20, 13, 34);
+  // 找不同：照片里多出来的——矮桌上的杯子、被拉上的窗帘
+  sideTable(ctx, w, h, true);
+  sideWindow(ctx, w, h, true);
   // 两侧墙面明暗（增加立体感）
   const shadeL = ctx.createLinearGradient(0, 0, w * 0.18, 0);
   shadeL.addColorStop(0, 'rgba(0,0,0,0.45)');
@@ -533,6 +598,9 @@ function sceneHallwayOrig(ctx: CanvasRenderingContext2D, w: number, h: number): 
   ctx.strokeRect(vx - 22, vy - 42, 44, 64);
   ctx.fillStyle = 'rgba(180,192,220,0.3)';
   ctx.fillRect(vx + 10, vy - 8, 3, 9);
+  // 找不同对照：没有杯子、窗帘拉开透光
+  sideTable(ctx, w, h, false);
+  sideWindow(ctx, w, h, false);
   ctx.fillStyle = 'rgba(12,15,24,0.7)';
   ctx.fillRect(0, vy * 0.92, w * 0.13, h);
   ctx.fillRect(w * 0.87, vy * 0.92, w * 0.13, h);

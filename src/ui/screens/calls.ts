@@ -1,6 +1,6 @@
 // 最近通话屏：隐藏线索（打给过自己）
 
-import { getRun } from '../../engine/state';
+import { getRun, addEvidence, hasEvidence } from '../../engine/state';
 import { CALLS } from '../../story/content';
 
 export function screenCalls(): HTMLElement {
@@ -33,6 +33,19 @@ export function screenCalls(): HTMLElement {
     when.className = 'call-when';
     when.textContent = `${data.when} · ${data.dur}`;
     row.append(dirIco, who, when);
+    if (data.evidence) {
+      const evBtn = document.createElement('button');
+      evBtn.className = 'collect-btn';
+      const got = hasEvidence(data.evidence);
+      evBtn.textContent = got ? '已收证 ✓' : '收证';
+      evBtn.disabled = got;
+      evBtn.addEventListener('click', () => {
+        addEvidence(data.evidence!);
+        evBtn.textContent = '已收证 ✓';
+        evBtn.disabled = true;
+      });
+      row.appendChild(evBtn);
+    }
     list.appendChild(row);
   }
 

@@ -32,6 +32,12 @@ export interface EffectContext {
   silenceDrop(): void;
   presence(): void;
   voice(text: string): void;
+  evidence(id: string): void;
+  battery(delta: number): void;
+  scare(type: string): void;
+  clock(minOfDay: number): void;
+  timed(id: string): void;
+  timeline(): Promise<void>;
 }
 
 /**
@@ -40,8 +46,8 @@ export interface EffectContext {
  */
 export async function runEffects(effects: string[] | undefined, ctx: EffectContext): Promise<boolean> {
   if (!effects) return false;
-  // 消费型效果（切屏/来电）延迟到最后执行，保证同串中前面的 count/flag 等效果先生效
-  let consume: { op: 'screen' | 'call'; arg: string } | null = null;
+  // 消费型效果（切屏/来电/限时判断）延迟到最后执行，保证同串中前面的 count/flag 等效果先生效
+  let consume: { op: 'screen' | 'call' | 'timed'; arg: string } | null = null;
   for (const raw of effects) {
     let op: string;
     let arg: string;
@@ -60,6 +66,12 @@ export async function runEffects(effects: string[] | undefined, ctx: EffectConte
         break;
       case 'screen':
         consume = { op: 'screen', arg };
+        break;
+      case 'timed':
+        consume = { op: 'timed', arg };
+        break;
+      case 'timeline':
+        await ctx.timeline();
         break;
       case 'card':
         await ctx.card(Number(arg));
@@ -145,11 +157,24 @@ export async function runEffects(effects: string[] | undefined, ctx: EffectConte
       case 'voice':
         ctx.voice(arg);
         break;
+      case 'evidence':
+        ctx.evidence(arg);
+        break;
+      case 'battery':
+        ctx.battery(Number(arg));
+        break;
+      case 'scare':
+        ctx.scare(arg);
+        break;
+      case 'clock':
+        ctx.clock(Number(arg));
+        break;
     }
   }
   // 消费型效果最后执行，接管后续流程
   if (consume) {
     if (consume.op === 'call') ctx.call(consume.arg);
+    else if (consume.op === 'timed') ctx.timed(consume.arg);
     else ctx.screen(consume.arg);
     return true;
   }

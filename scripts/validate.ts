@@ -18,7 +18,9 @@ for (const ch of getChapters()) {
   for (const node of ch.nodes) {
     if (node.choices?.length) {
       const hasUncond = node.choices.some((c) => !c.cond);
-      const hasScreenOrCall = node.choices.some((c) => c.effect?.some((e) => e.startsWith('call:') || e.startsWith('screen:')));
+      const hasScreenOrCall = node.choices.some((c) =>
+        c.effect?.some((e) => e.startsWith('call:') || e.startsWith('screen:') || e.startsWith('timed:')),
+      );
       if (!hasUncond && !hasScreenOrCall) {
         errors.push(`节点「${node.id}」的所有选项都有条件或都会被切屏消费，可能死胡同`);
       }
@@ -30,7 +32,10 @@ for (const ch of getChapters()) {
 for (const ch of getChapters()) {
   for (const node of ch.nodes) {
     if (!node.choices?.length && !node.next && !node.end) {
-      errors.push(`节点「${node.id}」是死路：无选项/无next/无end`);
+      const consumes = node.effects?.some((e) => e.startsWith('screen:') || e.startsWith('call:') || e.startsWith('timed:'));
+      if (!consumes) {
+        errors.push(`节点「${node.id}」是死路：无选项/无next/无end/无接管效果`);
+      }
     }
   }
 }

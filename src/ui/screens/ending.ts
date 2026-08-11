@@ -1,6 +1,6 @@
 // 结局屏：展示结局 + 画廊入口 + 再来一次
 
-import { getEnding, listEndings } from '../../story/endings';
+import { getEnding, listEndings, evidenceSummary } from '../../story/endings';
 import { getMeta, clearRun, interpolate } from '../../engine/state';
 import { getCurrentEndingId, startNewGame } from '../ui';
 import { router } from '../phone';
@@ -40,6 +40,20 @@ export function screenEnding(): HTMLElement {
   const body = document.createElement('div');
   body.className = 'ending-body';
   body.textContent = interpolate(end.text);
+
+  const summary = evidenceSummary();
+  if (summary) {
+    const epi = document.createElement('div');
+    epi.className = 'ending-epilogue';
+    const t = document.createElement('div');
+    t.className = 'ending-epi-title';
+    t.textContent = '这一夜，你确实做了这些事';
+    const s = document.createElement('div');
+    s.className = 'ending-epi-body';
+    s.innerHTML = summary.replace(/\n/g, '<br>');
+    epi.append(t, s);
+    wrap.insertBefore(epi, body.nextSibling);
+  }
 
   const meta = getMeta();
   const total = listEndings().length;

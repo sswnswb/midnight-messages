@@ -24,14 +24,21 @@ import {
   personality,
   getMeta,
   hasAllBaseEndings,
+  addEvidence,
+  hasEvidence,
+  addBattery,
+  setClock,
+  getHintsUsed,
+  setTimelineCorrect,
 } from '../engine/state';
 import { resolveEnding } from '../story/endings';
 import * as audio from '../engine/audio';
 import { fx } from './fx';
 import { router, ui as phoneUi } from './phone';
+import { hintBox } from './hints';
 import { Typewriter } from '../engine/typewriter';
 import { photoElement } from './art';
-import { photoById, noteById } from '../story/content';
+import { photoById, noteById, TIMELINE_CARDS, timelineOrder } from '../story/content';
 import { getEnding } from '../story/endings';
 
 // ---------- 章节标题 ----------
@@ -87,6 +94,9 @@ export function chatMount(container: HTMLElement): void {
 
 export function rehydrate(): void {
   if (!msgListEl) return;
+  // 剧情正在推进时不要重建消息列表：会把正在打字的元素从 DOM 上"剥"下来，
+  // 打字机失去可见目标，onDone 被延迟到幽灵元素打完才触发（每处长旁白卡 ~7-10s）。
+  if (busy) return;
   msgListEl.innerHTML = '';
   for (const item of history) {
     const node = getNode(item.nodeId);
@@ -349,7 +359,7 @@ export function showPhoto(id: string): Promise<void> {
       resolve();
       return;
     }
-    if (data.pair && data.diffZone) {
+    if (data.pair && (data.diffZone || (data.diffZones && data.diffZones.length > 0))) {
       showFindDiff(data, resolve);
       return;
     }
@@ -378,6 +388,21 @@ export function showPhoto(id: string): Promise<void> {
     close.className = 'photo-close';
     close.textContent = '关闭';
     overlay.appendChild(frame);
+    if (data.evidence) {
+      const evBtn = document.createElement('button');
+      evBtn.className = 'collect-btn';
+      const got = hasEvidence(data.evidence);
+      evBtn.textContent = got ? '已收证 ✓' : '收证';
+      evBtn.disabled = got;
+      evBtn.addEventListener('click', () => {
+        addEvidence(data.evidence!);
+        saveRun();
+        showBanner('🔍 已收入证据册');
+        evBtn.textContent = '已收证 ✓';
+        evBtn.disabled = true;
+      });
+      overlay.appendChild(evBtn);
+    }
     overlay.appendChild(close);
     app.appendChild(overlay);
     const dismiss = () => {
@@ -394,13 +419,16 @@ export function showPhoto(id: string): Promise<void> {
   });
 }
 
-/** 照片找不同谜题：号码发来的照片 vs 原图，点出差异 */
+/** 照片找不同谜题：多差异找茬（号码发来的照片 vs 原图，找全 3 处） */
 function showFindDiff(data: import('../story/content').PhotoData, resolve: () => void): void {
   const orig = photoById(data.pair!);
+  const zones: { id: string; rect: [number, number, number, number] }[] =
+    data.diffZones ?? (data.diffZone ? [{ id: 'diff', rect: data.diffZone }] : []);
+  const total = zones.length;
   const app = document.getElementById('app') as HTMLElement;
   const overlay = document.createElement('div');
   overlay.className = 'photo-viewer diff-viewer';
-  overlay.innerHTML = `<div class="diff-head">这张照片，和你相册里的<u>不太一样</u>。找出不同的地方。</div>`;
+  overlay.innerHTML = `<div class="diff-head">这张照片，和你相册里的<u>不太一样</u>。找出 ${total} 处不同。</div>`;
   const frame = document.createElement('div');
   frame.className = 'photo-frame diff-frame';
   const holder = document.createElement('div');
@@ -418,7 +446,7 @@ function showFindDiff(data: import('../story/content').PhotoData, resolve: () =>
 
   const hint = document.createElement('div');
   hint.className = 'diff-hint';
-  hint.textContent = '仔细看门缝那边。';
+  hint.textContent = '仔细看，有些地方不对劲。';
   frame.appendChild(hint);
 
   overlay.appendChild(frame);
@@ -426,9 +454,22 @@ function showFindDiff(data: import('../story/content').PhotoData, resolve: () =>
   close.className = 'photo-close';
   close.textContent = '关闭';
   overlay.appendChild(close);
+  overlay.appendChild(
+    hintBox(
+      [
+        '看那扇门。是不是……多了一个不该有的影子？',
+        '门对面的矮桌，和右侧的窗，再对照一次原图。',
+        '三处：门缝里的人影、矮桌上的杯子、被拉上的窗帘。',
+      ],
+      { taunt: '「连这个都要问？它就在照片里。」' },
+    ),
+  );
   app.appendChild(overlay);
 
   let showingOrig = false;
+  const found = new Set<string>();
+  const marks: HTMLElement[] = [];
+
   const dismiss = () => {
     overlay.classList.add('out');
     setTimeout(() => {
@@ -437,27 +478,57 @@ function showFindDiff(data: import('../story/content').PhotoData, resolve: () =>
     }, 260);
   };
 
+  const markAt = (rect: [number, number, number, number]) => {
+    const m = document.createElement('div');
+    m.className = 'diff-mark';
+    m.style.left = `${rect[0] * 100}%`;
+    m.style.top = `${rect[1] * 100}%`;
+    m.style.width = `${(rect[2] - rect[0]) * 100}%`;
+    m.style.height = `${(rect[3] - rect[1]) * 100}%`;
+    holder.appendChild(m);
+    marks.push(m);
+  };
+
   const checkTap = (e: PointerEvent) => {
     const rect = holder.getBoundingClientRect();
     const nx = (e.clientX - rect.left) / rect.width;
     const ny = (e.clientY - rect.top) / rect.height;
-    const [x0, y0, x1, y1] = data.diffZone!;
     if (showingOrig) {
       hint.textContent = '这是你自己拍的原图。换回那张再看看。';
       hint.classList.remove('good');
       return;
     }
-    if (nx >= x0 && nx <= x1 && ny >= y0 && ny <= y1) {
-      hint.textContent = '找到了。门缝里，多了一个人。';
-      hint.classList.add('good');
-      audio.playSend();
-      fx.redFlash(260);
-      setFlag('puzzle1Done', true);
-      saveRun();
-      close.disabled = false;
-      close.textContent = '明白了 · 返回';
-    } else {
-      hint.textContent = '不对。再看看，那个地方多出来了什么。';
+    let hit = false;
+    for (const z of zones) {
+      if (found.has(z.id)) continue;
+      const [x0, y0, x1, y1] = z.rect;
+      if (nx >= x0 && nx <= x1 && ny >= y0 && ny <= y1) {
+        found.add(z.id);
+        markAt(z.rect);
+        hit = true;
+        audio.playSend();
+        fx.redFlash(220);
+        hint.classList.add('good');
+        if (found.size === total) {
+          setFlag('puzzle1Done', true);
+          addEvidence('e_hallway');
+          saveRun();
+          close.disabled = false;
+          close.textContent = '明白了 · 返回';
+          hint.textContent = '全找到了。门缝里，多了一个人。';
+        } else {
+          hint.textContent = `找到了。(${found.size}/${total})`;
+        }
+        break;
+      }
+    }
+    if (!hit) {
+      hint.textContent = '不对。再看看，哪里多出来了什么。';
+      hint.classList.remove('good');
+      audio.playStaticBurst();
+      fx.shake(220);
+      addBattery(-5);
+      phoneUi.updateStatus();
     }
   };
 
@@ -465,9 +536,126 @@ function showFindDiff(data: import('../story/content').PhotoData, resolve: () =>
   toggle.addEventListener('click', () => {
     showingOrig = !showingOrig;
     holder.replaceChildren(photoElement(showingOrig ? orig!.id : data.id, showingOrig ? orig!.real : data.real));
+    for (const m of marks) holder.appendChild(m);
     toggle.textContent = showingOrig ? '看它发来的那张' : '对照原图';
   });
   close.addEventListener('click', dismiss);
+}
+
+/** 第四章时间线拼图：把那晚按顺序拼出来，混有伪造证据 */
+function showTimeline(resolve: () => void): void {
+  const order = timelineOrder();
+  const cards = TIMELINE_CARDS;
+  const slots: (string | null)[] = order.map(() => null);
+  const app = document.getElementById('app') as HTMLElement;
+  const ov = document.createElement('div');
+  ov.className = 'timeline-viewer';
+  const head = document.createElement('div');
+  head.className = 'tl-head';
+  head.innerHTML = `把那晚，按顺序拼出来。<br><span class="tl-sub">有些卡片不属于那晚。别放进去。</span>`;
+  const slotRow = document.createElement('div');
+  slotRow.className = 'tl-slots';
+  const hint = document.createElement('div');
+  hint.className = 'tl-hint';
+  hint.textContent = '点卡片放进时间槽；点时间槽取回。';
+  const pool = document.createElement('div');
+  pool.className = 'tl-pool';
+
+  const renderSlots = () => {
+    slotRow.innerHTML = '';
+    slots.forEach((id, i) => {
+      const s = document.createElement('button');
+      s.className = 'tl-slot' + (id ? ' filled' : '');
+      const card = cards.find((c) => c.id === id);
+      s.textContent = card ? `${card.when} · ${card.label}` : `槽 ${i + 1}`;
+      s.addEventListener('click', () => {
+        if (!id) return;
+        slots[i] = null;
+        renderSlots();
+        renderPool();
+      });
+      slotRow.appendChild(s);
+    });
+  };
+  const renderPool = () => {
+    pool.innerHTML = '';
+    for (const c of cards) {
+      if (slots.includes(c.id)) continue;
+      const b = document.createElement('button');
+      b.className = 'tl-card' + (c.fake ? ' fake' : '');
+      b.innerHTML = `<span class="tl-when">${c.when}</span><b>${c.label}</b><small>${c.sub}</small>`;
+      b.addEventListener('click', () => {
+        if (c.fake) {
+          hint.textContent = '这个……不属于那晚。';
+          hint.classList.remove('good');
+          audio.playStinger();
+          fx.glitch(200);
+          return;
+        }
+        const idx = slots.findIndex((s) => !s);
+        if (idx < 0) return;
+        slots[idx] = c.id;
+        renderSlots();
+        renderPool();
+        checkComplete();
+      });
+      pool.appendChild(b);
+    }
+  };
+  const checkComplete = () => {
+    if (slots.some((s) => !s)) return;
+    const got = slots.join('|');
+    if (got === order.join('|')) {
+      hint.textContent = '你拼出了真相。';
+      hint.classList.add('good');
+      setTimelineCorrect(true);
+      saveRun();
+      audio.playSend();
+      fx.redFlash(260);
+      window.setTimeout(() => {
+        ov.classList.add('out');
+        window.setTimeout(() => {
+          ov.remove();
+          resolve();
+        }, 300);
+      }, 900);
+    } else {
+      hint.textContent = '有一处顺序不对。卡片会回到下面，再试一次。';
+      hint.classList.remove('good');
+      audio.playStaticBurst();
+      fx.shake(280);
+      slots.fill(null);
+      renderSlots();
+      renderPool();
+    }
+  };
+
+  const giveUp = document.createElement('button');
+  giveUp.className = 'tl-giveup';
+  giveUp.textContent = '我拼不出来 · 放弃整理';
+  giveUp.addEventListener('click', () => {
+    ov.classList.add('out');
+    window.setTimeout(() => {
+      ov.remove();
+      resolve();
+    }, 300);
+  });
+
+  ov.append(head, slotRow, hint, pool);
+  ov.appendChild(
+    hintBox(
+      [
+        '那晚从聚餐开始。她劝过你别开车。',
+        '她打了两通电话（一通接了、一通没接），然后是那条「到家了吗」。',
+        '顺序：聚餐→你的备忘→来电31秒→未接来电→她问你→你回「马上到家」。两条「未知号码」和闹钟是假的。',
+      ],
+      { taunt: '「连顺序都拼不出来？你当时，可清醒得很。」' },
+    ),
+  );
+  ov.appendChild(giveUp);
+  app.appendChild(ov);
+  renderSlots();
+  renderPool();
 }
 
 export function showChapterCard(no: number): Promise<void> {
@@ -797,7 +985,145 @@ const ctx: EffectContext = {
   voice(text) {
     audio.speakText(text, { voice: 'distorted' });
   },
+  evidence(id) {
+    addEvidence(id);
+    saveRun();
+    showBanner('🔍 已收入证据册');
+    phoneUi.refreshScreens();
+  },
+  battery(delta) {
+    addBattery(delta);
+    phoneUi.updateStatus();
+  },
+  scare(type) {
+    doScare(type);
+  },
+  clock(minOfDay) {
+    setClock(minOfDay);
+    phoneUi.updateStatus();
+  },
+  timed(id) {
+    showTimedChoice(id);
+  },
+  timeline() {
+    return new Promise((resolve) => showTimeline(resolve));
+  },
 };
+
+// ---------- 限时判断（电量/时间压力下的快速抉择） ----------
+
+type TimedOption = {
+  label: string;
+  node: string;
+  flag?: string;
+  count?: string;
+  battery?: number;
+};
+type TimedChoice = {
+  prompt: string;
+  seconds: number;
+  options: TimedOption[];
+  timeout: TimedOption & { scare?: boolean };
+};
+
+const TIMED: Record<string, TimedChoice> = {
+  c333call: {
+    prompt: '手机快没电了。门外传来敲门声。\n\n你必须马上决定——',
+    seconds: 6,
+    options: [
+      { label: '开门', node: 'c3s13_open', flag: 'openedDoor', count: 'trait_truth' },
+      { label: '不开门，盯着手机屏幕', node: 'c3s13_phone', count: 'trait_care' },
+      { label: '关机，假装没人在家', node: 'c3s13_hide', count: 'trait_avoid', battery: 4 },
+    ],
+    timeout: { label: '（你僵在原地，什么都没做）', node: 'c3s13_timeout', battery: -25, scare: true },
+  },
+};
+
+function showTimedChoice(id: string): void {
+  const cfg = TIMED[id];
+  if (!cfg) {
+    console.warn(`[timed] 未注册: ${id}`);
+    return;
+  }
+  audio.playClockTick();
+  const app = document.getElementById('app') as HTMLElement;
+  const ov = document.createElement('div');
+  ov.className = 'timed-overlay';
+  const prompt = document.createElement('div');
+  prompt.className = 'timed-prompt';
+  prompt.textContent = cfg.prompt;
+  const bar = document.createElement('div');
+  bar.className = 'timed-bar';
+  const fill = document.createElement('div');
+  fill.className = 'timed-fill';
+  bar.appendChild(fill);
+  const btns = document.createElement('div');
+  btns.className = 'timed-btns';
+
+  let done = false;
+  const apply = (o: TimedOption) => {
+    if (o.flag) setFlag(o.flag, true);
+    if (o.count) addCount(o.count);
+    if (o.battery) addBattery(o.battery);
+    phoneUi.updateStatus();
+  };
+  const finish = (o: TimedOption, scare?: boolean) => {
+    if (done) return;
+    done = true;
+    clearInterval(iv);
+    apply(o);
+    if (scare) doScare('flash');
+    ov.classList.add('out');
+    window.setTimeout(() => {
+      ov.remove();
+      audio.playSend();
+      void playNode(o.node);
+    }, 300);
+  };
+
+  for (const o of cfg.options) {
+    const b = document.createElement('button');
+    b.className = 'timed-opt';
+    b.textContent = o.label;
+    b.addEventListener('click', () => finish(o));
+    btns.appendChild(b);
+  }
+  ov.append(prompt, bar, btns);
+  app.appendChild(ov);
+
+  requestAnimationFrame(() => {
+    fill.style.width = '0%';
+  });
+  const start = Date.now();
+  const iv = window.setInterval(() => {
+    if (Date.now() - start >= cfg.seconds * 1000) {
+      clearInterval(iv);
+      finish(cfg.timeout, cfg.timeout.scare);
+    }
+  }, 100);
+}
+
+/** 跳吓点：全屏覆盖层 + 音效，克制使用 */
+function doScare(type: string): void {
+  audio.playStinger();
+  fx.glitch(500);
+  const app = document.getElementById('app') as HTMLElement;
+  if (!app) return;
+  const ov = document.createElement('div');
+  ov.className = 'scare-overlay';
+  if (type === 'photo') {
+    ov.innerHTML = `<div class="scare-figure"></div><div class="scare-label">它也在看你</div>`;
+    audio.playStaticBurst();
+  } else {
+    ov.classList.add('flash');
+    audio.playStaticBurst();
+  }
+  app.appendChild(ov);
+  window.setTimeout(() => {
+    ov.classList.add('out');
+    window.setTimeout(() => ov.remove(), 400);
+  }, 620);
+}
 
 /** 消息撤回效果：把最后一条消息标记为被撤回 */
 function revokeLastMessage(): void {

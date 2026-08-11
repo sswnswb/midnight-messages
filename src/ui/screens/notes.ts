@@ -1,6 +1,6 @@
 // 备忘录屏：线索库之一
 
-import { getRun } from '../../engine/state';
+import { getRun, addEvidence, hasEvidence } from '../../engine/state';
 import { noteById } from '../../story/content';
 import { setNoteViewHandler } from '../phone';
 import { fx } from '../fx';
@@ -54,7 +54,7 @@ function renderList(): HTMLElement {
         return;
       }
       const listWrap = card.closest('.notes-screen') as HTMLElement | null;
-      if (listWrap) showBody(listWrap, data.body);
+      if (listWrap) showBody(listWrap, data.body, data.evidence);
     });
     // 彩蛋：长按带 secret 的备忘录，浮现隐藏文字
     if (data.secret) {
@@ -64,7 +64,7 @@ function renderList(): HTMLElement {
           didLongPress = true;
           fx.redFlash(300);
           const listWrap = card.closest('.notes-screen') as HTMLElement | null;
-          if (listWrap) showBody(listWrap, data.body + '\n\n（长按唤出）\n' + data.secret);
+          if (listWrap) showBody(listWrap, data.body + '\n\n（长按唤出）\n' + data.secret, data.evidence);
         }, 900);
       });
       card.addEventListener('pointerup', () => {
@@ -79,7 +79,7 @@ function renderList(): HTMLElement {
   return list;
 }
 
-function showBody(wrap: HTMLElement, body: string): void {
+function showBody(wrap: HTMLElement, body: string, evidenceId?: string): void {
   const view = document.createElement('div');
   view.className = 'note-view';
   const back = document.createElement('button');
@@ -95,6 +95,19 @@ function showBody(wrap: HTMLElement, body: string): void {
   noteDate.className = 'note-date';
   noteDate.textContent = '编辑于某天';
   view.append(back, bodyEl, noteDate);
+  if (evidenceId) {
+    const evBtn = document.createElement('button');
+    evBtn.className = 'collect-btn';
+    const got = hasEvidence(evidenceId);
+    evBtn.textContent = got ? '已收证 ✓' : '收证';
+    evBtn.disabled = got;
+    evBtn.addEventListener('click', () => {
+      addEvidence(evidenceId);
+      evBtn.textContent = '已收证 ✓';
+      evBtn.disabled = true;
+    });
+    view.appendChild(evBtn);
+  }
   wrap.replaceChildren(view);
   // 故障条目触发轻微抖动
   if (body.includes('别信')) {

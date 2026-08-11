@@ -1,6 +1,6 @@
 // 相册屏：线索库之二，承载"重复中的细微变化"
 
-import { getRun, addCount } from '../../engine/state';
+import { getRun, addCount, atTime } from '../../engine/state';
 import { photoById } from '../../story/content';
 import { photoElement } from '../art';
 import { showPhoto } from '../ui';
@@ -14,8 +14,8 @@ export function screenPhotos(): HTMLElement {
   grid.className = 'scroll-area photo-grid';
 
   const { photos } = getRun();
-  // 彩蛋：3:33 之后，相册里多出一张你没拍过的照片
-  const includeAnomaly = !!getRun().flags['night333'] && !photos.includes('p_333');
+  // 彩蛋：只有 3:33 那一刻，相册里才会多出那张你没拍过的照片
+  const includeAnomaly = !!getRun().flags['night333'] && atTime(213) && !photos.includes('p_333');
   if (includeAnomaly) photos.push('p_333');
 
   if (photos.length === 0) {

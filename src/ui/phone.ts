@@ -1,6 +1,6 @@
 // 手机外壳 + 屏幕路由 + UI 门面（供引擎调用）
 
-import { getRun, getMeta } from '../engine/state';
+import { getRun, getMeta, getBattery } from '../engine/state';
 import * as audio from '../engine/audio';
 import { screenMenu } from './screens/menu';
 import { screenChat } from './screens/chat';
@@ -11,6 +11,7 @@ import { screenCalls } from './screens/calls';
 import { screenDrafts } from './screens/drafts';
 import { screenSettings } from './screens/settings';
 import { screenEnding } from './screens/ending';
+import { screenEvidence } from './screens/evidence';
 
 export type ScreenName =
   | 'menu'
@@ -21,7 +22,8 @@ export type ScreenName =
   | 'calls'
   | 'drafts'
   | 'settings'
-  | 'ending';
+  | 'ending'
+  | 'evidence';
 
 interface ScreenReg {
   render: () => HTMLElement;
@@ -39,14 +41,16 @@ const screens: Record<ScreenName, ScreenReg> = {
   drafts: { render: () => screenDrafts(), title: '草稿箱', nav: false },
   settings: { render: () => screenSettings(), title: '设置', nav: true },
   ending: { render: () => screenEnding(), title: '' },
+  evidence: { render: () => screenEvidence(), title: '证据册', nav: true },
 };
 
-const NAV_ORDER: ScreenName[] = ['chat', 'notes', 'photos', 'contacts', 'settings'];
+const NAV_ORDER: ScreenName[] = ['chat', 'notes', 'photos', 'evidence', 'contacts', 'settings'];
 
 let current: ScreenName = 'menu';
 let phoneEl: HTMLElement | null = null;
 let screenEl: HTMLElement | null = null;
 let statusTimeEl: HTMLElement | null = null;
+let statusBattEl: HTMLElement | null = null;
 let headerTitleEl: HTMLElement | null = null;
 let navEl: HTMLElement | null = null;
 
@@ -58,6 +62,11 @@ export const ui = {
     const h = Math.floor(total / 60);
     const m = total % 60;
     statusTimeEl.textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    if (statusBattEl) {
+      const batt = getBattery();
+      statusBattEl.textContent = `${batt}%`;
+      statusBattEl.classList.toggle('low', batt <= 20);
+    }
   },
 
   refreshScreens(): void {
@@ -148,6 +157,8 @@ function navIcon(name: ScreenName): string {
       return '👤';
     case 'settings':
       return '⚙️';
+    case 'evidence':
+      return '🔍';
     default:
       return '';
   }
@@ -165,6 +176,8 @@ function navLabel(name: ScreenName): string {
       return '联系人';
     case 'settings':
       return '设置';
+    case 'evidence':
+      return '证据';
     default:
       return '';
   }
@@ -189,10 +202,11 @@ export function mountPhone(): HTMLElement {
   status.className = 'status-bar';
   status.innerHTML = `
     <span class="st-left">23:57</span>
-    <span class="st-right">📶 · 🔋</span>
+    <span class="st-right">📶 · <span class="st-batt">87%</span></span>
   `;
   screen.appendChild(status);
   statusTimeEl = status.querySelector('.st-left');
+  statusBattEl = status.querySelector('.st-batt');
 
   const header = document.createElement('div');
   header.className = 'screen-header';

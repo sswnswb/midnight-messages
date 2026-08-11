@@ -14,6 +14,10 @@ export interface PhotoData {
   pair?: string;
   /** 找不同谜题：差异区域的归一化坐标 [x0,y0,x1,y1]（0-1） */
   diffZone?: [number, number, number, number];
+  /** 多差异找茬：多差异区域 {id, rect}[] */
+  diffZones?: { id: string; rect: [number, number, number, number] }[];
+  /** 收证到证据册的证据 id */
+  evidence?: string;
 }
 
 export interface NoteData {
@@ -24,6 +28,8 @@ export interface NoteData {
   glitched?: boolean;
   /** 长按触发的隐藏文字（彩蛋） */
   secret?: string;
+  /** 收证到证据册的证据 id */
+  evidence?: string;
 }
 
 export interface CallData {
@@ -32,6 +38,8 @@ export interface CallData {
   when: string;
   dir: 'in' | 'out' | 'missed';
   dur: string;
+  /** 收证到证据册的证据 id */
+  evidence?: string;
 }
 
 export const PHOTOS: PhotoData[] = [
@@ -42,6 +50,7 @@ export const PHOTOS: PhotoData[] = [
     date: '2025-04-18',
     caption: '四月。那天她吹蜡烛前说，下辈子还要一起过生日。',
     real: 'assets/photos/p_lin_cake.jpg',
+    evidence: 'e_birthday',
   },
   {
     id: 'p_lin_window',
@@ -56,6 +65,7 @@ export const PHOTOS: PhotoData[] = [
     date: '2025-11-06',
     caption: '聚餐。她说雨大，让我别开车……',
     real: 'assets/photos/p_nightout.jpg',
+    evidence: 'e_nightout',
   },
   {
     id: 'p_hallway',
@@ -64,7 +74,11 @@ export const PHOTOS: PhotoData[] = [
     caption: '……门缝里，好像有人。',
     real: 'assets/photos/p_hallway.jpg',
     pair: 'p_hallway_orig',
-    diffZone: [0.44, 0.28, 0.6, 0.42],
+    diffZones: [
+      { id: 'figure', rect: [0.4, 0.24, 0.6, 0.46] },
+      { id: 'cup', rect: [0.07, 0.54, 0.24, 0.78] },
+      { id: 'curtain', rect: [0.6, 0.16, 0.9, 0.52] },
+    ],
   },
   {
     id: 'p_hallway_orig',
@@ -87,6 +101,7 @@ export const PHOTOS: PhotoData[] = [
     caption: '收拾东西那天拍的。她不在，房间就空了。',
     real: 'assets/photos/p_room.jpg',
     shifting: true,
+    evidence: 'e_room',
   },
   {
     id: 'p_333',
@@ -94,6 +109,7 @@ export const PHOTOS: PhotoData[] = [
     date: '？？？？',
     caption: '这张照片，你从来没有拍过。',
     real: 'assets/photos/p_333.jpg',
+    evidence: 'e_333',
   },
 ];
 
@@ -115,6 +131,7 @@ export const NOTES: NoteData[] = [
     title: '未发送的草稿',
     date: '2025-11-07 00:12',
     body: '我错了。\n\n对不起。\n\n如果那天我没碰手机……',
+    evidence: 'e_lin_draft',
   },
   {
     id: 'n_dinner',
@@ -141,6 +158,7 @@ export const NOTES: NoteData[] = [
     date: '????',
     body: '别信手机。\n\n它不是你。\n它在骗你。\n别信手机。别信手机。别信手机。',
     glitched: true,
+    evidence: 'e_note_wrong',
   },
   {
     id: 'n_right',
@@ -148,16 +166,71 @@ export const NOTES: NoteData[] = [
     date: '????',
     body: '别信自己。\n\n你忘了很多事。\n记得开车那晚吗。\n你手机里，真的有那么多未读吗。',
     glitched: true,
+    evidence: 'e_note_wrong',
   },
 ];
 
 export const CALLS: CallData[] = [
   { id: 'c_zhou_1', who: '周凯', when: '2026-08-10 21:03', dir: 'in', dur: '12:47' },
   { id: 'c_mom_1', who: '妈妈', when: '2026-08-09 19:52', dir: 'missed', dur: '—' },
-  { id: 'c_self', who: '未知号码', when: '2026-08-11 00:04', dir: 'out', dur: '00:03' },
+  { id: 'c_self', who: '未知号码', when: '2026-08-11 00:04', dir: 'out', dur: '00:03', evidence: 'e_call_self' },
   { id: 'c_lin_1', who: '林晚', when: '2025-11-06 23:38', dir: 'in', dur: '00:31' },
-  { id: 'c_lin_last', who: '林晚', when: '2025-11-06 23:41', dir: 'missed', dur: '—' },
+  { id: 'c_lin_last', who: '林晚', when: '2025-11-06 23:41', dir: 'missed', dur: '—', evidence: 'e_lin_last' },
 ];
+
+/** 证据册元数据：id → 标题 + 推理注记 */
+export interface EvidenceData {
+  id: string;
+  title: string;
+  note: string;
+  icon: string;
+}
+
+export const EVIDENCE: Record<string, EvidenceData> = {
+  e_birthday: { id: 'e_birthday', title: '她的生日蛋糕照', note: '2025-04-18。你留着它，是不敢忘。', icon: '🎂' },
+  e_hallway: { id: 'e_hallway', title: '走廊照片（它发来的）', note: '门缝里多了一个人。你相册里没有这个人。', icon: '🖼️' },
+  e_333: { id: 'e_333', title: '3:33 的照片', note: '这张照片不是你拍的。它出现在你相册里，像一直就在。', icon: '🌑' },
+  e_room: { id: 'e_room', title: '空房间', note: '你数了三遍，房间里没有人。可你知道你看见了什么。', icon: '🚪' },
+  e_call_self: { id: 'e_call_self', title: '打给自己的电话', note: '通话记录里，凌晨 00:04，有一个打出去的号码——是你的号码。', icon: '📞' },
+  e_note_wrong: { id: 'e_note_wrong', title: '矛盾的备忘录', note: '一条说"别信手机"，一条说"别信自己"。你的手机里不该有这些字。', icon: '📝' },
+  e_draft: { id: 'e_draft', title: '草稿箱的定时短信', note: '每天 00:00 定时发送，发给你自己。你一年前设下的。', icon: '⏰' },
+  e_lin_last: { id: 'e_lin_last', title: '她最后一通电话', note: '2025-11-06 23:41，她打来，你未接。之后是那场雨。', icon: '📴' },
+  e_nightout: { id: 'e_nightout', title: '那晚的聚餐照', note: '2025-11-06。她说雨大，让你别开车。', icon: '🌧️' },
+  e_lin_draft: { id: 'e_lin_draft', title: '未发送的草稿', note: '"我错了。如果那天我没碰手机……" 你永远没有发出去。', icon: '✉️' },
+};
+
+export function evidenceMeta(id: string): EvidenceData | undefined {
+  return EVIDENCE[id];
+}
+
+/** 第四章时间线拼图：那晚的证据卡（fake=true 是号码伪造的干扰项） */
+export interface TimelineCard {
+  id: string;
+  label: string;
+  sub: string;
+  when: string;
+  fake?: boolean;
+  /** 真实时间顺序 1-6；干扰项无 order */
+  order?: number;
+}
+
+export const TIMELINE_CARDS: TimelineCard[] = [
+  { id: 't_party', label: '那晚的聚餐', sub: '她劝你：雨大，别开车。你没当回事。', when: '19:20', order: 1 },
+  { id: 't_note', label: '你的备忘', sub: '「晚上给她回电话 · 九点前到家」', when: '17:10', order: 2 },
+  { id: 't_call1', label: '她来电 · 31 秒', sub: '你在开车，接了。她说：雨好大，你慢点。', when: '23:38', order: 3 },
+  { id: 't_call2', label: '她再来电 · 未接', sub: '第二通。你没接——你在回那条短信。', when: '23:41', order: 4 },
+  { id: 't_msg', label: '她问你', sub: '「到家了吗？」亮在屏幕上。', when: '23:47', order: 5 },
+  { id: 't_reply', label: '你回了', sub: '「马上到家，你等我」——一边开车，一边打字。', when: '23:52', order: 6 },
+  { id: 't_fake1', label: '「未知号码」的短信', sub: '那晚，还没有这个号码。', when: '23:41', fake: true },
+  { id: 't_fake2', label: '第二天早上的闹钟', sub: '和那晚无关。', when: '07:00', fake: true },
+];
+
+/** 真实顺序：order 升序的真实卡片 id */
+export function timelineOrder(): string[] {
+  return TIMELINE_CARDS.filter((c) => !c.fake)
+    .sort((a, b) => (a.order! - b.order!))
+    .map((c) => c.id);
+}
 
 export function photoById(id: string): PhotoData | undefined {
   return PHOTOS.find((p) => p.id === id);

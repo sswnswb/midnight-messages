@@ -35,6 +35,9 @@ export function validateGraph(): string[] {
         errors.push(`节点「${id}」的选择指向不存在的节点「${ch.go}」`);
       }
     }
+    if (node.next && !registry.has(node.next) && !/^ending:/.test(node.next)) {
+      errors.push(`节点「${id}」的 next 指向不存在的节点「${node.next}」`);
+    }
     if (node.end && !/^ending:/.test(node.end)) {
       errors.push(`节点「${id}」的 end 字段格式应为 ending:xxx`);
     }

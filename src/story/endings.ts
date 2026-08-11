@@ -2,6 +2,7 @@
 
 import type { EndData } from '../types';
 import type { Personality } from '../engine/state';
+import { getRun, hasEvidence, evidenceCount, getHintsUsed } from '../engine/state';
 
 export const ENDINGS: Record<string, EndData> = {
   confess: {
@@ -56,20 +57,42 @@ export function listEndings(): EndData[] {
   return Object.values(ENDINGS);
 }
 
-/** 人格加权结算结局（不再有明选菜单） */
+/** 人格 + 证据质量加权结算结局（结局是"调查+选择"一起挣出来的，不是明选菜单） */
 export function resolveEnding(p: Personality, opts: { newGamePlus: boolean; allBaseUnlocked: boolean }): string {
-  // 二周目隐藏结局：所有基础结局都解锁过 + 足够直面与在意
+  const run = getRun();
+  // 直面类证据：你真的动手去挖过真相
+  const truthEv = [
+    hasEvidence('e_hallway'),
+    hasEvidence('e_333'),
+    hasEvidence('e_call_self'),
+    hasEvidence('e_note_wrong'),
+    hasEvidence('e_draft'),
+    run.timelineCorrect,
+  ].filter(Boolean).length;
+  // 在意类证据：你主动去看了"她"留下的东西
+  const careEv = [
+    hasEvidence('e_room'),
+    hasEvidence('e_lin_last'),
+    hasEvidence('e_nightout'),
+    hasEvidence('e_lin_draft'),
+  ].filter(Boolean).length;
+  const hints = getHintsUsed();
+  // 依赖提示太多，"直面"的成色打折
+  const evictedTruth = Math.max(0, truthEv - Math.floor(hints / 2));
+
+  // 二周目隐藏结局：所有基础结局解锁过 + 足够直面与在意
   if (opts.newGamePlus && opts.allBaseUnlocked && p.truth >= 3 && p.care >= 3) return 'awakening';
 
   // 彻底沉默
   if (p.silent >= 4) return 'silence';
-  // 逃避主导且几乎不直面
-  if (p.avoid >= 4 && p.truth <= 2) return 'loop';
-  // 原谅自己（高在意 + 高直面）——隐藏结局
-  if (p.care >= 5 && p.truth >= 4) return 'merge';
+  // 逃避主导、几乎不直面、也没挖到真相
+  if (p.avoid >= 4 && p.truth <= 2 && truthEv < 2) return 'loop';
+  // 原谅自己（隐藏结局）：要么纯人格够高，要么"高在意 + 真挖过证据"
+  if ((p.care >= 5 && p.truth >= 4) || (p.care >= 4 && truthEv >= 2 && careEv >= 2)) return 'merge';
   // 求助线走通
-  if (p.help >= 4 && p.truth >= 2) return 'therapy';
-  // 直面真相
+  if (p.help >= 3 && p.truth >= 2) return 'therapy';
+  // 直面真相（真挖过证据，且不是全靠提示问出来的）
+  if (p.truth >= 4 && evictedTruth >= 2) return 'confess';
   if (p.truth >= 4) return 'confess';
 
   // 兜底：看哪个维度最高
@@ -87,4 +110,19 @@ export function resolveEnding(p: Personality, opts: { newGamePlus: boolean; allB
     default:
       return 'confess';
   }
+}
+
+/** 结局屏追加的"今晚你确实做了这些事"——引用玩家的具体调查行为 */
+export function evidenceSummary(): string {
+  const run = getRun();
+  const lines: string[] = [];
+  if (run.timelineCorrect) lines.push('你把那晚的顺序，自己拼对了。');
+  if (hasEvidence('e_hallway')) lines.push('你找齐了门缝里的影子。');
+  if (hasEvidence('e_333')) lines.push('你在 3:33 打开过相册。');
+  if (hasEvidence('e_room')) lines.push('那个空房间，你反复看过。');
+  if (hasEvidence('e_call_self')) lines.push('你看见了那通打给自己的电话。');
+  if (hasEvidence('e_draft')) lines.push('你打开了草稿箱，看见定时短信。');
+  if (hasEvidence('e_note_wrong')) lines.push('你读到了那两条矛盾的备忘录。');
+  if (getHintsUsed() >= 3) lines.push('有些答案，你是问出来的。');
+  return lines.length ? lines.join('\n') : '';
 }
