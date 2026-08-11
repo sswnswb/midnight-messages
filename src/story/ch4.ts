@@ -43,7 +43,7 @@ export const ch4: Chapter = {
     N('c4s13', 'number', '你不信？\n\n那你去打开草稿箱。密码是你永远忘不掉的那一天。\n\n「我们」之后的那一天。', ['typing', 'drafts'], undefined, 'c4s13d'),
     // 草稿箱决策点：去解锁，或已解锁继续
     N('c4s13d', 'narration', '草稿箱需要 4 位数字密码。', [], [
-      { label: '*去解锁草稿箱', effect: ['screen:drafts'], go: 'c4s13d' },
+      { label: '*去解锁草稿箱', cond: '!flag:draftsUnlocked', effect: ['screen:drafts'], go: 'c4s13d' },
       { label: '我打开了，都看完了。', cond: 'flag:draftsUnlocked', go: 'c4s15', flags: { sawDrafts: true }, effect: ['count:trait_truth'] },
       { label: '*先记下这个谜题，想想再回来', go: 'c4s13d' },
     ]),
@@ -51,7 +51,8 @@ export const ch4: Chapter = {
       { label: '*我该拿你怎么办', go: 'c4s14b' },
     ]),
     N('c4s14b', 'number', '去打开草稿箱。密码是 11 月 6 日。\n\n那是你唯一逃不掉的日子。', ['typing'], [
-      { label: '*回到草稿箱，解锁它', effect: ['screen:drafts'], go: 'c4s13d' },
+      { label: '*回到草稿箱，解锁它', cond: '!flag:draftsUnlocked', effect: ['screen:drafts'], go: 'c4s13d' },
+      { label: '我打开了，都看完了。', cond: 'flag:draftsUnlocked', go: 'c4s15', flags: { sawDrafts: true }, effect: ['count:trait_truth'] },
     ]),
     N('c4s15', 'number', '看完了？\n\n那些定时短信——是你，一年前自己设下的。\n\n每天 00:00，发给一个永远不会再回你的人。', ['typing', 'sting'], undefined, 'c4s16'),
     N('c4s16', 'number', '你设下它们，是因为你怕自己忘了。\n\n怕有一天，你真的会以为，那只是一场雨。', ['typing'], undefined, 'c4s17'),
