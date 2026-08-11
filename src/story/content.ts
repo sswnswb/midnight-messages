@@ -43,13 +43,12 @@ export interface CallData {
 }
 
 export const PHOTOS: PhotoData[] = [
-  { id: 'p_home', title: '壁纸', date: '2026-08-01', caption: '随手拍的夜晚', real: 'assets/photos/p_home.jpg' },
+  { id: 'p_home', title: '壁纸', date: '2026-08-01', caption: '随手拍的夜晚' },
   {
     id: 'p_lin_cake',
     title: '她的生日',
     date: '2025-04-18',
     caption: '四月。那天她吹蜡烛前说，下辈子还要一起过生日。',
-    real: 'assets/photos/p_lin_cake.jpg',
     evidence: 'e_birthday',
   },
   {
@@ -57,14 +56,12 @@ export const PHOTOS: PhotoData[] = [
     title: '窗边',
     date: '2025-06-02',
     caption: '她说看云能减压，我不信，跟着她看了一下午。',
-    real: 'assets/photos/p_lin_window.jpg',
   },
   {
     id: 'p_nightout',
     title: '那晚',
     date: '2025-11-06',
     caption: '聚餐。她说雨大，让我别开车……',
-    real: 'assets/photos/p_nightout.jpg',
     evidence: 'e_nightout',
   },
   {
@@ -72,7 +69,6 @@ export const PHOTOS: PhotoData[] = [
     title: '它发来的照片',
     date: '现在',
     caption: '……门缝里，好像有人。',
-    real: 'assets/photos/p_hallway.jpg',
     pair: 'p_hallway_orig',
     diffZones: [
       { id: 'figure', rect: [0.4, 0.24, 0.6, 0.46] },
@@ -85,21 +81,18 @@ export const PHOTOS: PhotoData[] = [
     title: '走廊',
     date: '去年 11 月 5 日',
     caption: '这张才是你自己拍的。那天走廊很干净。',
-    real: 'assets/photos/p_hallway_orig.jpg',
   },
   {
     id: 'p_crash',
     title: '现场',
     date: '2025-11-06 23:41',
     caption: '新闻截图。雨夜，一辆车冲下护栏。',
-    real: 'assets/photos/p_crash.jpg',
   },
   {
     id: 'p_room',
     title: '空房间',
     date: '2025-11-07',
     caption: '收拾东西那天拍的。她不在，房间就空了。',
-    real: 'assets/photos/p_room.jpg',
     shifting: true,
     evidence: 'e_room',
   },
@@ -108,7 +101,6 @@ export const PHOTOS: PhotoData[] = [
     title: '？',
     date: '？？？？',
     caption: '这张照片，你从来没有拍过。',
-    real: 'assets/photos/p_333.jpg',
     evidence: 'e_333',
   },
 ];

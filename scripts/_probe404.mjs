@@ -1,0 +1,11 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch();
+const page = await browser.newPage();
+const failed = [];
+page.on('requestfailed', (r) => failed.push(r.url()));
+page.on('response', (r) => { if (r.status() === 404) failed.push(r.url()); });
+await page.goto('https://sswnswb.github.io/midnight-messages/', { waitUntil: 'networkidle' });
+await page.waitForTimeout(1000);
+console.log('404 请求:');
+[...new Set(failed)].forEach((u) => console.log('  ', u.replace('https://sswnswb.github.io/midnight-messages/', '')));
+await browser.close();
