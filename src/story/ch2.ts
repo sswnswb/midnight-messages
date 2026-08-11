@@ -1,4 +1,4 @@
-// 第二章 《第二夜》——谜题①：纪念日密码
+// 第二章 《第二夜》——谜题②：纪念日密码；NPC 求助线
 
 import type { Chapter, StoryNode } from '../types';
 
@@ -15,8 +15,8 @@ export const ch2: Chapter = {
   id: 2,
   title: '第二夜',
   nodes: [
-    N('c2s1', 'narration', '白天浑浑噩噩。周凯在微信上喊你吃午饭，你没回。\n\n晚上十一点五十，你躺下，手机放在枕边。\n\n你知道它要来。', ['chapter:2', 'card:2', 'note:n_secret', 'contact:c_doctor'], undefined, 'c2s2'),
-    N('c2s2', 'number', '我来了。', ['typing', 'sfx:msg_num', 'time:0'], undefined, 'c2s3'),
+    N('c2s1', 'narration', '白天浑浑噩噩。周凯在微信上喊你吃午饭，你没回。\n\n晚上十一点五十，你躺下，手机放在枕边。\n\n你知道它要来。', ['chapter:2', 'card:2', 'note:n_secret', 'time:0'], undefined, 'c2s2'),
+    N('c2s2', 'number', '我来了。', ['typing', 'sfx:msg_num'], undefined, 'c2s3'),
     N('c2s3', 'number', '今天你开会走了三次神。第三次，你在备忘录里写了一个字，又删了。', ['typing'], [
       { label: '你连我的备忘录都看得见？', go: 'c2s4', flags: { revealNote: true } },
       { label: '*没回，却打开了自己的备忘录', go: 'c2s4b' },
@@ -28,7 +28,7 @@ export const ch2: Chapter = {
     // 决策点：可去翻相册，也可直接答
     N('c2s6w', 'narration', '你想了想。', [], [
       { label: '*先去翻相册，找那张蛋糕的照片', effect: ['screen:photos'], go: 'c2s6w' },
-      { label: '*直接回答：4 月 18 日', go: 'c2s7', flags: { solvedPuzzle1: true } },
+      { label: '*直接回答：4 月 18 日', go: 'c2s7', flags: { solvedPuzzle1: true }, effect: ['count:trait_truth'] },
       { label: '*直接回答：6 月 2 日', go: 'c2s6wrong' },
       { label: '*直接回答：11 月 6 日', go: 'c2s6wrong' },
     ]),
@@ -40,7 +40,7 @@ export const ch2: Chapter = {
       { label: '*再猜一次', go: 'c2s6w' },
     ]),
     N('c2s7', 'number', '……4 月 18 日。\n\n那是你们相遇的第一天。很好，你记得。\n\n可是你记不记得，你们在一起的最后一天，是哪一天？', ['typing', 'sfx:sting'], [
-      { label: '11 月 6 日。车祸那天。', go: 'c2s8', flags: { knowsDate: true } },
+      { label: '11 月 6 日。车祸那天。', go: 'c2s8', flags: { knowsDate: true }, effect: ['count:trait_truth'] },
       { label: '*不想回答', go: 'c2s8' },
     ]),
     N('c2s8', 'number', '11 月 6 日。那天下着大雨。\n\n你开着车，手机亮着——一条短信。\n\n你回了吗？', ['typing'], undefined, 'c2s9'),
@@ -51,14 +51,13 @@ export const ch2: Chapter = {
     N('c2s9a', 'number', '是吗。\n\n你确定吗。', ['typing', 'sting'], [{ label: '*沉默', go: 'c2s10' }]),
     N('c2s9b', 'number', '你果然不记得了。\n\n没关系。我替你记着。', ['typing', 'sting'], [{ label: '*沉默', go: 'c2s10' }]),
     N('c2s10', 'number', '今晚先到这儿。\n\n明天，我带你去见一个人。', ['typing'], [
-      { label: '*打给周凯，把这件事说出来', effect: ['call:zhou'], go: 'c2_aftercall_zhou' },
-      { label: '*打给妈妈，听听她的声音', effect: ['call:mom'], go: 'c2_aftercall_mom' },
-      { label: '*谁都不打，自己扛着', go: 'c2s11', flags: { alone: true } },
+      { label: '*打给周凯，把这件事说出来', effect: ['call:zhou', 'count:trait_help'], go: 'c2_aftercall_zhou' },
+      { label: '*打给妈妈，听听她的声音', effect: ['call:mom', 'count:trait_help'], go: 'c2_aftercall_mom' },
+      { label: '*约陈医生周四复诊', effect: ['count:trait_help', 'banner:已预约 陈医生 · 周四 15:00'], go: 'c2s11', flags: { bookedDoctor: true } },
+      { label: '*谁都不找，自己扛', effect: ['count:trait_avoid'], go: 'c2s11', flags: { alone: true } },
     ]),
-    // 自己扛
     N('c2s11', 'number', '很好。\n\n你选择了自己扛。像以前一样。', ['typing'], undefined, 'c2s12'),
     N('c2s12', 'number', '晚安。明天见。\n\n等你真正想起来的时候，你会感谢今晚的你。', ['typing'], undefined, 'c3s1'),
-    // 电话后汇合
     N('c2_aftercall_zhou', 'number', '你的同事很关心你。\n\n可惜，他帮不了你。', ['typing', 'calllog:c_zhou_1'], [
       { label: '*把号码发给周凯看', go: 'c2s12', flags: { toldZhou: true } },
       { label: '算了，说了他也不信。', go: 'c2s12', flags: { toldZhou: true } },

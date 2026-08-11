@@ -4,6 +4,7 @@ import { getRun, setFlag, getFlag } from '../../engine/state';
 import { router } from '../phone';
 import * as audio from '../../engine/audio';
 import { fx } from '../fx';
+import { showBanner } from '../ui';
 
 const PASSCODE = '1106';
 
@@ -29,7 +30,7 @@ export function screenDrafts(): HTMLElement {
 
   const unlocked = getFlag('draftsUnlocked') as boolean || getRun().draftsUnlocked;
   if (unlocked) {
-    wrap.appendChild(renderDrafts());
+    wrap.appendChild(renderDrafts(() => router.show('chat')));
   } else {
     wrap.appendChild(renderLock());
   }
@@ -61,6 +62,7 @@ function renderLock(): HTMLElement {
   const keys = document.createElement('div');
   keys.className = 'passcode-keys';
   let entered = '';
+  let wrongTimes = 0;
   const setDots = () => {
     dots.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('fill', i < entered.length));
   };
@@ -80,6 +82,13 @@ function renderLock(): HTMLElement {
         audio.playStinger();
         fx.shake(260);
         entered = '';
+        wrongTimes++;
+        if (wrongTimes === 3) {
+          // 彩蛋：连错三次，号码嘲讽
+          showBanner('「你在用谁的生日？她一定很失望。」');
+          fx.glitch(500);
+          hint.textContent = '（密码：那晚的雨，是哪一天？）';
+        }
         window.setTimeout(setDots, 180);
       }
     }
@@ -107,9 +116,13 @@ function renderLock(): HTMLElement {
   return view;
 }
 
-function renderDrafts(): HTMLElement {
+function renderDrafts(onContinue: () => void): HTMLElement {
   const list = document.createElement('div');
   list.className = 'scroll-area drafts-list';
+  const success = document.createElement('div');
+  success.className = 'drafts-success';
+  success.innerHTML = '🔓 <b>已解锁</b> —— 这些定时短信，全是你自己一年前设下的。';
+  list.appendChild(success);
   for (const d of DRAFTS) {
     const row = document.createElement('div');
     row.className = 'draft-row' + (d.sent ? ' sent' : '');
@@ -132,5 +145,11 @@ function renderDrafts(): HTMLElement {
   end.className = 'system-note';
   end.textContent = '（草稿箱的定时发送，最早的一条，是你出事前一周设置的。）';
   list.appendChild(end);
+  // 明确的"继续"入口，避免玩家解完锁不知道回短信
+  const go = document.createElement('button');
+  go.className = 'menu-btn drafts-continue';
+  go.textContent = '我看完了 · 回到短信继续';
+  go.addEventListener('click', onContinue);
+  list.appendChild(go);
   return list;
 }

@@ -47,10 +47,33 @@ function renderList(): HTMLElement {
     b.className = 'note-card-preview';
     b.textContent = data.body.split('\n').slice(0, 2).join(' ');
     card.append(t, d, b);
+    let didLongPress = false;
     card.addEventListener('click', () => {
+      if (didLongPress) {
+        didLongPress = false;
+        return;
+      }
       const listWrap = card.closest('.notes-screen') as HTMLElement | null;
       if (listWrap) showBody(listWrap, data.body);
     });
+    // 彩蛋：长按带 secret 的备忘录，浮现隐藏文字
+    if (data.secret) {
+      let pressTimer: number | null = null;
+      card.addEventListener('pointerdown', () => {
+        pressTimer = window.setTimeout(() => {
+          didLongPress = true;
+          fx.redFlash(300);
+          const listWrap = card.closest('.notes-screen') as HTMLElement | null;
+          if (listWrap) showBody(listWrap, data.body + '\n\n（长按唤出）\n' + data.secret);
+        }, 900);
+      });
+      card.addEventListener('pointerup', () => {
+        if (pressTimer) clearTimeout(pressTimer);
+      });
+      card.addEventListener('pointerleave', () => {
+        if (pressTimer) clearTimeout(pressTimer);
+      });
+    }
     list.appendChild(card);
   }
   return list;

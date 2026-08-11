@@ -84,6 +84,30 @@ if (await cake.count()) {
   await page.click('.photo-close');
 }
 
+// ---------- 4b. 照片找不同谜题 ----------
+await setRun(
+  {
+    flags: {},
+    currentNode: 'c1s5',
+    chapter: 1,
+    readCount: 5,
+    time: 0,
+    notes: ['n_onboarding'],
+    photos: ['p_home', 'p_lin_cake', 'p_hallway_orig'],
+    contacts: ['c_unknown'],
+    calls: [],
+    draftsUnlocked: false,
+    roomViewed: 0,
+  },
+  { endings: [], newGamePlus: false },
+);
+await page.reload();
+await page.waitForTimeout(1600);
+await page.click('.menu-btn >> text=继续上一夜');
+await page.locator('.diff-viewer').waitFor({ timeout: 9000 });
+await page.waitForTimeout(600);
+await shot('15-find-diff');
+
 // ---------- 5. 注入存档直达：故障备忘录（第三章矛盾线索） ----------
 await setRun(
   {
@@ -147,11 +171,11 @@ if (await unlockChoice.count()) {
   await shot('12-drafts-unlocked');
 }
 
-// ---------- 7. 结局：真结局 ----------
+// ---------- 7. 结局：人格加权 → 自首 ----------
 await setRun(
   {
-    flags: { chooseConfess: true, tears: true },
-    currentNode: 'c5s5',
+    flags: { trait_truth: 4, trait_care: 1, trait_help: 0, trait_avoid: 0 },
+    currentNode: 'c5s5w',
     chapter: 5,
     readCount: 30,
     time: 0,
@@ -168,7 +192,7 @@ await page.reload();
 await page.waitForTimeout(1600);
 await page.click('.menu-btn >> text=继续上一夜');
 await page.locator('.choice-btn').first().waitFor({ timeout: 9000 });
-const confess = page.locator('.choice-btn', { hasText: '自首' });
+const confess = page.locator('.choice-btn', { hasText: '派出所' });
 if (await confess.count()) {
   await confess.click();
   await page.locator('.ending-screen').waitFor({ timeout: 9000 });

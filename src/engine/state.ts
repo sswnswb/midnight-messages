@@ -33,14 +33,14 @@ const META_KEY = 'wywlx_meta_v1';
 export function freshRun(): RunState {
   return {
     flags: {},
-    currentNode: 'c1s1',
-    chapter: 1,
+    currentNode: 'p1s1',
+    chapter: 0,
     readCount: 0,
-    time: 0,
-    notes: ['n_onboarding', 'n_dinner', 'n_secret', 'n_zhou'],
-    photos: ['p_home', 'p_lin_cake', 'p_lin_window', 'p_nightout', 'p_room'],
-    contacts: ['c_unknown', 'c_lin', 'c_zhou', 'c_mom'],
-    calls: [],
+    time: 23 * 60 + 50, // 序章从 23:50 开始
+    notes: ['n_onboarding', 'n_lin_remind', 'n_lin_draft', 'n_zhou', 'n_secret'],
+    photos: ['p_home', 'p_lin_cake', 'p_lin_window', 'p_nightout', 'p_room', 'p_hallway_orig'],
+    contacts: ['c_unknown', 'c_lin', 'c_zhou', 'c_mom', 'c_doctor'],
+    calls: ['c_lin_last'],
     draftsUnlocked: false,
     roomViewed: 0,
   };
@@ -166,6 +166,31 @@ export function recordEnding(id: string): void {
 
 export function hasEnding(id: string): boolean {
   return meta.endings.includes(id);
+}
+
+/** 人格维度（由剧情中的 trait 计数累积） */
+export interface Personality {
+  truth: number; // 直面真相
+  help: number; // 求助他人
+  avoid: number; // 逃避/拉黑
+  care: number; // 在意林晚、愿意倾听
+  silent: number; // 已读不回、彻底沉默
+}
+
+export function personality(): Personality {
+  const n = (k: string) => Number(run.flags[k]) || 0;
+  return {
+    truth: n('trait_truth'),
+    help: n('trait_help'),
+    avoid: n('trait_avoid'),
+    care: n('trait_care'),
+    silent: n('trait_silent'),
+  };
+}
+
+/** 是否已解锁全部基础结局（二周目隐藏结局的门槛） */
+export function hasAllBaseEndings(): boolean {
+  return ['confess', 'therapy', 'loop', 'merge', 'silence'].every((id) => meta.endings.includes(id));
 }
 
 /** 条件表达式求值 */

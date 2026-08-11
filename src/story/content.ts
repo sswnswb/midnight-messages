@@ -10,6 +10,10 @@ export interface PhotoData {
   real?: string;
   /** 查看时是否变化 */
   shifting?: boolean;
+  /** 找不同谜题：该照片的"原版对照"id（用于照片找不同） */
+  pair?: string;
+  /** 找不同谜题：差异区域的归一化坐标 [x0,y0,x1,y1]（0-1） */
+  diffZone?: [number, number, number, number];
 }
 
 export interface NoteData {
@@ -18,6 +22,8 @@ export interface NoteData {
   date: string;
   body: string;
   glitched?: boolean;
+  /** 长按触发的隐藏文字（彩蛋） */
+  secret?: string;
 }
 
 export interface CallData {
@@ -53,10 +59,19 @@ export const PHOTOS: PhotoData[] = [
   },
   {
     id: 'p_hallway',
-    title: '走廊',
+    title: '它发来的照片',
     date: '现在',
-    caption: '？？？？？',
+    caption: '……门缝里，好像有人。',
     real: 'assets/photos/p_hallway.jpg',
+    pair: 'p_hallway_orig',
+    diffZone: [0.44, 0.28, 0.6, 0.42],
+  },
+  {
+    id: 'p_hallway_orig',
+    title: '走廊',
+    date: '去年 11 月 5 日',
+    caption: '这张才是你自己拍的。那天走廊很干净。',
+    real: 'assets/photos/p_hallway_orig.jpg',
   },
   {
     id: 'p_crash',
@@ -73,6 +88,13 @@ export const PHOTOS: PhotoData[] = [
     real: 'assets/photos/p_room.jpg',
     shifting: true,
   },
+  {
+    id: 'p_333',
+    title: '？',
+    date: '？？？？',
+    caption: '这张照片，你从来没有拍过。',
+    real: 'assets/photos/p_333.jpg',
+  },
 ];
 
 export const NOTES: NoteData[] = [
@@ -81,6 +103,18 @@ export const NOTES: NoteData[] = [
     title: '待办',
     date: '2026-08-10',
     body: '· 给妈妈回电话\n· 交水电费\n· 买洗衣液\n· 明天上午开会\n· 别想太多',
+  },
+  {
+    id: 'n_lin_remind',
+    title: '备忘',
+    date: '2025-11-06',
+    body: '· 晚上给她回电话\n· 她说要给我看个东西\n· 别忘了，她容易生气\n· 九点前到家',
+  },
+  {
+    id: 'n_lin_draft',
+    title: '未发送的草稿',
+    date: '2025-11-07 00:12',
+    body: '我错了。\n\n对不起。\n\n如果那天我没碰手机……',
   },
   {
     id: 'n_dinner',
@@ -93,6 +127,7 @@ export const NOTES: NoteData[] = [
     title: '—',
     date: '2025-04-18',
     body: '4.18\n\n是我们的日子。\n她让我别忘。\n我不会忘。',
+    secret: '……她说：如果你有一天不在了，也要替她，好好活下去。',
   },
   {
     id: 'n_zhou',
@@ -121,6 +156,7 @@ export const CALLS: CallData[] = [
   { id: 'c_mom_1', who: '妈妈', when: '2026-08-09 19:52', dir: 'missed', dur: '—' },
   { id: 'c_self', who: '未知号码', when: '2026-08-11 00:04', dir: 'out', dur: '00:03' },
   { id: 'c_lin_1', who: '林晚', when: '2025-11-06 23:38', dir: 'in', dur: '00:31' },
+  { id: 'c_lin_last', who: '林晚', when: '2025-11-06 23:41', dir: 'missed', dur: '—' },
 ];
 
 export function photoById(id: string): PhotoData | undefined {

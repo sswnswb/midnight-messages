@@ -321,6 +321,31 @@ body {
 .fx-shake {
   animation: shakeAnim 0.28s linear infinite;
 }
+.fx-flicker .screen-content,
+.fx-flicker .status-bar,
+.fx-flicker .screen-header {
+  animation: flickerAnim 0.12s steps(2) infinite;
+}
+@keyframes flickerAnim {
+  0% { opacity: 1; }
+  25% { opacity: 0.35; }
+  50% { opacity: 0.85; }
+  75% { opacity: 0.2; }
+  100% { opacity: 1; }
+}
+.msg-row.revoked .bubble {
+  opacity: 0.3;
+  filter: grayscale(0.6);
+}
+.revoke-note {
+  font-size: 10.5px;
+  color: var(--red);
+  letter-spacing: 0.1em;
+}
+.presence-glitch {
+  animation: flickerAnim 0.2s steps(3) infinite;
+  color: var(--red);
+}
 @keyframes shakeAnim {
   0% { transform: translate(0, 0); }
   25% { transform: translate(-3px, 2px); }
@@ -760,6 +785,9 @@ body {
   color: var(--ink-dim);
   letter-spacing: 0.04em;
 }
+.wall-abnormal .art-proc {
+  filter: grayscale(0.9) brightness(0.7) contrast(1.1);
+}
 
 /* 照片查看器 */
 .photo-viewer {
@@ -1032,6 +1060,25 @@ body {
   font-size: 9px;
   color: var(--red);
   letter-spacing: 0.1em;
+}
+
+.drafts-success {
+  font-size: 13px;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+  padding: 10px 14px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(110, 168, 255, 0.2);
+  border-radius: 10px;
+  line-height: 1.6;
+  margin-bottom: 4px;
+}
+.drafts-success b {
+  font-weight: 600;
+}
+.drafts-continue {
+  margin-top: 16px;
+  font-size: 13.5px;
 }
 
 /* ---------- 设置 ---------- */

@@ -21,7 +21,11 @@ import {
   addNote,
   addContact,
   addCall,
+  personality,
+  getMeta,
+  hasAllBaseEndings,
 } from '../engine/state';
+import { resolveEnding } from '../story/endings';
 import * as audio from '../engine/audio';
 import { fx } from './fx';
 import { router, ui as phoneUi } from './phone';
@@ -345,6 +349,10 @@ export function showPhoto(id: string): Promise<void> {
       resolve();
       return;
     }
+    if (data.pair && data.diffZone) {
+      showFindDiff(data, resolve);
+      return;
+    }
     audio.playType();
     const app = document.getElementById('app') as HTMLElement;
     const overlay = document.createElement('div');
@@ -384,6 +392,82 @@ export function showPhoto(id: string): Promise<void> {
       if (e.target === overlay) dismiss();
     });
   });
+}
+
+/** 照片找不同谜题：号码发来的照片 vs 原图，点出差异 */
+function showFindDiff(data: import('../story/content').PhotoData, resolve: () => void): void {
+  const orig = photoById(data.pair!);
+  const app = document.getElementById('app') as HTMLElement;
+  const overlay = document.createElement('div');
+  overlay.className = 'photo-viewer diff-viewer';
+  overlay.innerHTML = `<div class="diff-head">这张照片，和你相册里的<u>不太一样</u>。找出不同的地方。</div>`;
+  const frame = document.createElement('div');
+  frame.className = 'photo-frame diff-frame';
+  const holder = document.createElement('div');
+  holder.className = 'diff-holder';
+  holder.appendChild(photoElement(data.id, data.real));
+  frame.appendChild(holder);
+
+  const bar = document.createElement('div');
+  bar.className = 'diff-bar';
+  const toggle = document.createElement('button');
+  toggle.className = 'diff-toggle';
+  toggle.textContent = '对照原图';
+  bar.appendChild(toggle);
+  frame.appendChild(bar);
+
+  const hint = document.createElement('div');
+  hint.className = 'diff-hint';
+  hint.textContent = '仔细看门缝那边。';
+  frame.appendChild(hint);
+
+  overlay.appendChild(frame);
+  const close = document.createElement('button');
+  close.className = 'photo-close';
+  close.textContent = '关闭';
+  overlay.appendChild(close);
+  app.appendChild(overlay);
+
+  let showingOrig = false;
+  const dismiss = () => {
+    overlay.classList.add('out');
+    setTimeout(() => {
+      overlay.remove();
+      resolve();
+    }, 260);
+  };
+
+  const checkTap = (e: PointerEvent) => {
+    const rect = holder.getBoundingClientRect();
+    const nx = (e.clientX - rect.left) / rect.width;
+    const ny = (e.clientY - rect.top) / rect.height;
+    const [x0, y0, x1, y1] = data.diffZone!;
+    if (showingOrig) {
+      hint.textContent = '这是你自己拍的原图。换回那张再看看。';
+      hint.classList.remove('good');
+      return;
+    }
+    if (nx >= x0 && nx <= x1 && ny >= y0 && ny <= y1) {
+      hint.textContent = '找到了。门缝里，多了一个人。';
+      hint.classList.add('good');
+      audio.playSend();
+      fx.redFlash(260);
+      setFlag('puzzle1Done', true);
+      saveRun();
+      close.disabled = false;
+      close.textContent = '明白了 · 返回';
+    } else {
+      hint.textContent = '不对。再看看，那个地方多出来了什么。';
+    }
+  };
+
+  holder.addEventListener('pointerup', checkTap);
+  toggle.addEventListener('click', () => {
+    showingOrig = !showingOrig;
+    holder.replaceChildren(photoElement(showingOrig ? orig!.id : data.id, showingOrig ? orig!.real : data.real));
+    toggle.textContent = showingOrig ? '看它发来的那张' : '对照原图';
+  });
+  close.addEventListener('click', dismiss);
 }
 
 export function showChapterCard(no: number): Promise<void> {
@@ -524,7 +608,15 @@ export function getCurrentEndingId(): string | null {
 }
 
 export function endGame(endingRef: string): void {
-  const id = endingRef.replace('ending:', '');
+  let id = endingRef.replace('ending:', '');
+  if (id === 'resolve') {
+    // 结局由人格加权结算（无明选菜单）
+    const p = personality();
+    id = resolveEnding(p, {
+      newGamePlus: getMeta().newGamePlus,
+      allBaseUnlocked: hasAllBaseEndings(),
+    });
+  }
   const end = getEnding(id);
   if (end) {
     recordEnding(id);
@@ -543,9 +635,9 @@ export function startNewGame(): void {
   resetChat();
   audio.initAudio();
   audio.startAmbient();
-  audio.setChapterDensity(1);
+  audio.setChapterDensity(0);
   router.show('chat');
-  void playNode('c1s1');
+  void playNode('p1s1');
 }
 
 export function continueGame(): void {
@@ -672,4 +764,51 @@ const ctx: EffectContext = {
     // 标记草稿箱可见（由 drafts 屏幕读取 flags）
     setFlag('draftsVisible', true);
   },
+  flicker(dur) {
+    fx.glitch(dur ?? 600);
+    const sc = document.querySelector('.phone-screen') as HTMLElement | null;
+    if (sc) {
+      sc.classList.add('fx-flicker');
+      window.setTimeout(() => sc.classList.remove('fx-flicker'), (dur ?? 600) + 200);
+    }
+  },
+  revoke() {
+    revokeLastMessage();
+  },
+  wallChange(on) {
+    setFlag('wallChanged', on);
+    phoneUi.refreshScreens();
+  },
+  silenceDrop() {
+    audio.silenceDrop();
+  },
+  presence() {
+    // 状态栏时间异常：跳回 00:00 又恢复
+    const el = document.querySelector('.st-left') as HTMLElement | null;
+    if (el) {
+      el.textContent = '00:00';
+      el.classList.add('presence-glitch');
+      window.setTimeout(() => {
+        phoneUi.updateStatus();
+        el.classList.remove('presence-glitch');
+      }, 1800);
+    }
+  },
+  voice(text) {
+    audio.speakText(text, { voice: 'distorted' });
+  },
 };
+
+/** 消息撤回效果：把最后一条消息标记为被撤回 */
+function revokeLastMessage(): void {
+  const rows = msgListEl?.querySelectorAll('.msg-row') ?? [];
+  const last = rows[rows.length - 1] as HTMLElement | undefined;
+  if (last) {
+    last.classList.add('revoked');
+    const note = document.createElement('div');
+    note.className = 'system-note revoke-note';
+    note.textContent = '⚠ 对方撤回了一条消息';
+    last.after(note);
+    scrollBottom();
+  }
+}

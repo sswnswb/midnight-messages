@@ -1,7 +1,7 @@
 // 结局屏：展示结局 + 画廊入口 + 再来一次
 
 import { getEnding, listEndings } from '../../story/endings';
-import { getMeta, clearRun } from '../../engine/state';
+import { getMeta, clearRun, interpolate } from '../../engine/state';
 import { getCurrentEndingId, startNewGame } from '../ui';
 import { router } from '../phone';
 import * as audio from '../../engine/audio';
@@ -39,7 +39,7 @@ export function screenEnding(): HTMLElement {
 
   const body = document.createElement('div');
   body.className = 'ending-body';
-  body.textContent = end.text;
+  body.textContent = interpolate(end.text);
 
   const meta = getMeta();
   const total = listEndings().length;

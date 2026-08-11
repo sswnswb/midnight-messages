@@ -370,6 +370,100 @@ export function vibrate(pattern: number[]): void {
   }
 }
 
+/** 钟摆声（漫长的夜里） */
+export function playClockTick(): void {
+  if (!ctx) return;
+  const tick = () => {
+    const t = ctx!.currentTime;
+    const o = ctx!.createOscillator();
+    o.type = 'sine';
+    o.frequency.value = 1500;
+    const g = ctx!.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.05, t + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
+    o.connect(g).connect(sfxBus!);
+    o.start(t);
+    o.stop(t + 0.04);
+  };
+  tick();
+}
+
+/** 远处警笛（氛围暗示） */
+export function playSiren(): void {
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  const o = ctx.createOscillator();
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(420, t);
+  o.frequency.linearRampToValueAtTime(560, t + 0.6);
+  o.frequency.linearRampToValueAtTime(420, t + 1.2);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.05, t + 0.4);
+  g.gain.linearRampToValueAtTime(0.0001, t + 1.4);
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 900;
+  o.connect(lp).connect(g).connect(sfxBus!);
+  o.start(t);
+  o.stop(t + 1.5);
+}
+
+/** 静电/白噪爆点（信号异常） */
+export function playStaticBurst(): void {
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  const src = ctx.createBufferSource();
+  src.buffer = makeNoiseBuffer(0.5);
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = 2200;
+  bp.Q.value = 0.8;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.14, t + 0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+  src.connect(bp).connect(g).connect(sfxBus!);
+  src.start(t);
+  src.stop(t + 0.35);
+}
+
+/** 寂静骤停：关掉氛围 1.8s，然后一声心跳 */
+export function silenceDrop(): void {
+  if (!ctx) return;
+  const c = ctx;
+  if (ambientStarted && ambNodes) {
+    const g = ambNodes.gain;
+    g.gain.setTargetAtTime(0, c.currentTime, 0.05);
+    setTimeout(() => {
+      if (ambientStarted && ambNodes) {
+        g.gain.setTargetAtTime(0.5, c.currentTime, 0.8);
+      }
+    }, 1800);
+  }
+  playHeartSingle();
+}
+
+function playHeartSingle(): void {
+  if (!ctx) return;
+  const c = ctx;
+  const t = c.currentTime + 1.9;
+  for (const [off] of [[0], [0.28]]) {
+    const o = c.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(68, t + off);
+    o.frequency.exponentialRampToValueAtTime(40, t + off + 0.16);
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t + off);
+    g.gain.exponentialRampToValueAtTime(0.4, t + off + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + off + 0.2);
+    o.connect(g).connect(sfxBus!);
+    o.start(t + off);
+    o.stop(t + off + 0.25);
+  }
+}
+
 /** 相册查看空房间时的"呼吸声" */
 export function playBreath(): void {
   if (!ctx) return;

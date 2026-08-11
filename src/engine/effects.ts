@@ -26,6 +26,12 @@ export interface EffectContext {
   ambient(on: boolean): void;
   noteopen(id: string): void;
   drafts(): void;
+  flicker(dur?: number): void;
+  revoke(): void;
+  wallChange(on: boolean): void;
+  silenceDrop(): void;
+  presence(): void;
+  voice(text: string): void;
 }
 
 /**
@@ -34,17 +40,27 @@ export interface EffectContext {
  */
 export async function runEffects(effects: string[] | undefined, ctx: EffectContext): Promise<boolean> {
   if (!effects) return false;
+  // 消费型效果（切屏/来电）延迟到最后执行，保证同串中前面的 count/flag 等效果先生效
+  let consume: { op: 'screen' | 'call'; arg: string } | null = null;
   for (const raw of effects) {
-    const i = raw.indexOf(':');
-    const op = i < 0 ? raw : raw.slice(0, i);
-    const arg = i < 0 ? '' : raw.slice(i + 1);
+    let op: string;
+    let arg: string;
+    if (raw.startsWith('photo:open:')) {
+      // 两段式指令：photo:open:<id>
+      op = 'photo:open';
+      arg = raw.slice('photo:open:'.length);
+    } else {
+      const i = raw.indexOf(':');
+      op = i < 0 ? raw : raw.slice(0, i);
+      arg = i < 0 ? '' : raw.slice(i + 1);
+    }
     switch (op) {
       case 'call':
-        ctx.call(arg);
-        return true; // 来电接管后续流程
+        consume = { op: 'call', arg };
+        break;
       case 'screen':
-        ctx.screen(arg);
-        return true; // 切屏接管（通常作为章节过渡/强制查看）
+        consume = { op: 'screen', arg };
+        break;
       case 'card':
         await ctx.card(Number(arg));
         break;
@@ -111,7 +127,31 @@ export async function runEffects(effects: string[] | undefined, ctx: EffectConte
       case 'drafts':
         ctx.drafts();
         break;
+      case 'flicker':
+        ctx.flicker(arg ? Number(arg) : undefined);
+        break;
+      case 'msgrevoke':
+        ctx.revoke();
+        break;
+      case 'wallchange':
+        ctx.wallChange(arg !== 'off');
+        break;
+      case 'silence':
+        ctx.silenceDrop();
+        break;
+      case 'presence':
+        ctx.presence();
+        break;
+      case 'voice':
+        ctx.voice(arg);
+        break;
     }
+  }
+  // 消费型效果最后执行，接管后续流程
+  if (consume) {
+    if (consume.op === 'call') ctx.call(consume.arg);
+    else ctx.screen(consume.arg);
+    return true;
   }
   return false;
 }

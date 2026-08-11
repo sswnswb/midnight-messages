@@ -1,17 +1,19 @@
 // 程序化电影感美术 v2：为每个照片 id 绘制氛围场景
 // 设计原则：电影感调色 + 光斑景深 + 精致剪影 + 细噪点，努力让"程序图"接近实拍照片气质。
 
-type Scene = 'city' | 'hallway' | 'portrait' | 'accident' | 'room' | 'window' | 'cake' | 'wallpaper';
+type Scene = 'city' | 'hallway' | 'hallway_orig' | 'portrait' | 'accident' | 'room' | 'window' | 'cake' | 'wallpaper' | 'anomaly';
 
 const SCENES: Record<string, Scene> = {
   p_home: 'city',
   p_lin_cake: 'cake',
   p_lin_window: 'window',
   p_hallway: 'hallway',
+  p_hallway_orig: 'hallway_orig',
   p_crash: 'accident',
   p_room: 'room',
   p_nightout: 'city',
   p_wall: 'wallpaper',
+  p_333: 'anomaly',
 };
 
 function pickScene(id: string): Scene {
@@ -500,6 +502,93 @@ function sceneRoom(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   grade(ctx, w, h, 'rgba(120,150,210,0.04)', 1);
 }
 
+function sceneHallwayOrig(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  // 走廊原图：更普通、更明亮一点，没有身影（找不同对照）
+  bg(ctx, w, h, [[0, '#0e1320'], [1, '#0b0f18']]);
+  const vx = w * 0.5, vy = h * 0.36;
+  const wallG = ctx.createLinearGradient(0, 0, 0, vy);
+  wallG.addColorStop(0, '#101525');
+  wallG.addColorStop(1, '#0d121e');
+  ctx.fillStyle = wallG;
+  ctx.fillRect(0, 0, w, vy);
+  const floorG = ctx.createLinearGradient(0, vy, 0, h);
+  floorG.addColorStop(0, '#121828');
+  floorG.addColorStop(1, '#0c101a');
+  ctx.fillStyle = floorG;
+  ctx.fillRect(0, vy, w, h - vy);
+  ctx.strokeStyle = 'rgba(160,175,210,0.09)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 10; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * (w / 10), h);
+    ctx.lineTo(vx, vy);
+    ctx.stroke();
+  }
+  // 门：关闭，无光缝，无身影——普通的走廊
+  glow(ctx, vx, vy + 10, 22, 'rgba(160,172,200,0.12)');
+  ctx.fillStyle = 'rgba(150,162,190,0.14)';
+  ctx.fillRect(vx - 22, vy - 42, 44, 64);
+  ctx.strokeStyle = 'rgba(170,182,210,0.22)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(vx - 22, vy - 42, 44, 64);
+  ctx.fillStyle = 'rgba(180,192,220,0.3)';
+  ctx.fillRect(vx + 10, vy - 8, 3, 9);
+  ctx.fillStyle = 'rgba(12,15,24,0.7)';
+  ctx.fillRect(0, vy * 0.92, w * 0.13, h);
+  ctx.fillRect(w * 0.87, vy * 0.92, w * 0.13, h);
+  grade(ctx, w, h, 'rgba(80,110,180,0.03)', 1);
+}
+
+function sceneAnomaly(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  // 3:33 异常照片：本该空无一物的房间，窗边站着一个背对的人影
+  bg(ctx, w, h, [[0, '#080a10'], [1, '#0a0d14']]);
+  ctx.fillStyle = '#090b12';
+  ctx.fillRect(0, 0, w, h * 0.7);
+  const floorG = ctx.createLinearGradient(0, h * 0.7, 0, h);
+  floorG.addColorStop(0, '#0e121c');
+  floorG.addColorStop(1, '#080a10');
+  ctx.fillStyle = floorG;
+  ctx.fillRect(0, h * 0.7, w, h * 0.3);
+  // 窗（微弱月光）
+  const winX = w * 0.3, winY = h * 0.14, winW = w * 0.4, winH = h * 0.36;
+  glow(ctx, winX + winW / 2, winY + winH / 2, winW * 0.8, 'rgba(160,175,210,0.5)');
+  const winG = ctx.createLinearGradient(0, winY, 0, winY + winH);
+  winG.addColorStop(0, 'rgba(150,165,200,0.5)');
+  winG.addColorStop(1, 'rgba(110,130,175,0.35)');
+  ctx.fillStyle = winG;
+  ctx.fillRect(winX, winY, winW, winH);
+  ctx.strokeStyle = '#090b12';
+  ctx.lineWidth = 5;
+  ctx.strokeRect(winX, winY, winW, winH);
+  ctx.beginPath();
+  ctx.moveTo(winX + winW / 2, winY);
+  ctx.lineTo(winX + winW / 2, winY + winH);
+  ctx.stroke();
+  // 窗边背对的身影（异常）
+  ctx.fillStyle = 'rgba(5,6,9,0.95)';
+  ctx.beginPath();
+  ctx.arc(winX + winW / 2, winY + winH - 4, 13, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(winX + winW / 2 - 20, winY + winH + 2);
+  ctx.quadraticCurveTo(winX + winW / 2, winY + winH - 22, winX + winW / 2 + 20, winY + winH + 2);
+  ctx.closePath();
+  ctx.fill();
+  // 窗台边放着一个空的水杯（她留下的）
+  ctx.fillStyle = 'rgba(170,185,215,0.25)';
+  ctx.fillRect(w * 0.24, h * 0.5, 14, 20);
+  ctx.fillRect(w * 0.235, h * 0.47, 17, 4);
+  // 地面一道长长的影子
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.beginPath();
+  ctx.moveTo(winX + winW / 2, winY + winH);
+  ctx.lineTo(winX + winW / 2 + 80, h);
+  ctx.lineTo(winX + winW / 2 - 10, h);
+  ctx.closePath();
+  ctx.fill();
+  grade(ctx, w, h, 'rgba(90,110,170,0.06)', 1);
+}
+
 function sceneWallpaper(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   bg(ctx, w, h, [[0, '#05070d'], [1, '#0a0f1a']]);
   for (let i = 0; i < 220; i++) {
@@ -527,6 +616,12 @@ function drawScene(scene: Scene, ctx: CanvasRenderingContext2D, w: number, h: nu
       break;
     case 'hallway':
       sceneHallway(ctx, w, h);
+      break;
+    case 'hallway_orig':
+      sceneHallwayOrig(ctx, w, h);
+      break;
+    case 'anomaly':
+      sceneAnomaly(ctx, w, h);
       break;
     case 'accident':
       sceneAccident(ctx, w, h);
